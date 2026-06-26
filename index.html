@@ -1,0 +1,5923 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Validador de inventario</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --surface: #ffffff;
+      --ink: #151922;
+      --muted: #667085;
+      --line: #d9dee8;
+      --soft: #eef2f6;
+      --brand: #1267d7;
+      --brand-dark: #0c4ea4;
+      --ok: #0f8a5f;
+      --warn: #b86200;
+      --bad: #c92f3c;
+      --shadow: 0 12px 30px rgba(18, 24, 38, .09);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.35;
+    }
+
+    button, input, textarea, select { font: inherit; }
+
+    button {
+      border: 0;
+      border-radius: var(--radius);
+      cursor: pointer;
+      min-height: 46px;
+      padding: 0 16px;
+      font-weight: 800;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .48;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 4px rgba(18, 103, 215, .14);
+    }
+
+    textarea {
+      min-height: 180px;
+      padding: 12px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    input[type="number"] {
+      min-height: 62px;
+      padding: 0 16px;
+      font-size: 28px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    input[type="file"] {
+      min-height: 50px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      text-align: left;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      padding: 14px 12px 110px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      margin: -14px -12px 12px;
+      padding: 12px;
+      background: rgba(244, 246, 248, .94);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(217, 222, 232, .8);
+    }
+
+    .title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: 20px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    h3 {
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    .muted { color: var(--muted); }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .grid.two { grid-template-columns: 1fr 1fr; }
+
+    .btn-primary {
+      background: var(--brand);
+      color: #fff;
+    }
+
+    .btn-primary:active { background: var(--brand-dark); }
+
+    .btn-secondary {
+      background: var(--soft);
+      color: var(--ink);
+    }
+
+    .btn-danger {
+      background: #fff0f1;
+      color: var(--bad);
+      border: 1px solid #ffc9ce;
+    }
+
+    .btn-mini {
+      min-height: 38px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+
+    .progress {
+      height: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e4e8ef;
+      margin-top: 8px;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: var(--brand);
+      transition: width .2s ease;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .stat {
+      padding: 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      text-align: center;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .package-list, .group-list { display: grid; gap: 10px; }
+
+    .item-button {
+      width: 100%;
+      min-height: 70px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      text-align: left;
+      display: grid;
+      gap: 7px;
+    }
+
+    .item-button .row { align-items: flex-start; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 26px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .badge.ok { background: #e9f8f1; color: var(--ok); }
+    .badge.warn { background: #fff3df; color: var(--warn); }
+    .badge.bad { background: #fff0f1; color: var(--bad); }
+    .badge.brand { background: #e9f1ff; color: var(--brand); }
+
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      border-radius: var(--radius);
+      padding: 8px 6px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .step.active {
+      border-color: var(--brand);
+      background: #e9f1ff;
+      color: var(--brand);
+    }
+
+    .step.done {
+      border-color: #b8e6d0;
+      background: #e9f8f1;
+      color: var(--ok);
+    }
+
+    .product-card {
+      min-height: 390px;
+      display: grid;
+      align-content: start;
+      gap: 16px;
+    }
+
+    .product-id {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .product-name {
+      font-size: clamp(24px, 8vw, 38px);
+      line-height: 1.05;
+      font-weight: 950;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .calc {
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #f9fafc;
+      font-size: 15px;
+    }
+
+    .calc strong { font-size: 22px; }
+    .calc.ok strong { color: var(--ok); }
+    .calc.warn strong { color: var(--warn); }
+    .calc.bad strong { color: var(--bad); }
+
+    .bottom-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.45fr;
+      gap: 10px;
+      padding: 0;
+      background: transparent;
+    }
+
+    .quantity-row {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .quantity-row.physical {
+      grid-template-columns: 1fr;
+    }
+
+    .minus-btn {
+      min-height: 62px;
+      padding: 0;
+      background: var(--soft);
+      color: var(--ink);
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .review-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .review-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px;
+      background: #fff;
+    }
+
+    .review-row small {
+      display: block;
+      color: var(--muted);
+      margin-top: 3px;
+      font-weight: 700;
+    }
+
+    .notice {
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: #fff3df;
+      color: #7b4300;
+      border: 1px solid #ffd99f;
+      font-weight: 700;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (min-width: 660px) {
+      .app { padding-top: 18px; }
+      h1 { font-size: 24px; }
+      .product-card { min-height: 430px; }
+    }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .app, .topbar, .bottom-actions { display: none !important; }
+      #printReport { display: block !important; }
+      .print-page {
+        font-family: Arial, sans-serif;
+        font-size: 10.5pt;
+        color: #111;
+      }
+      .print-page h1 { font-size: 18pt; margin-bottom: 4mm; }
+      .print-page h2 { font-size: 12pt; margin: 6mm 0 2mm; }
+      .print-meta, .print-summary {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2mm;
+        margin-bottom: 4mm;
+      }
+      .print-box {
+        border: 1px solid #999;
+        padding: 2mm;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        page-break-inside: auto;
+      }
+      th, td {
+        border: 1px solid #aaa;
+        padding: 1.5mm;
+        text-align: left;
+        vertical-align: top;
+      }
+      th { background: #eee; }
+      tr { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="title">
+        <div>
+          <h1>Validador de inventario</h1>
+          <p class="muted" id="topStatus">Carga el inventario para comenzar</p>
+        </div>
+        <button class="btn-secondary btn-mini" id="homeBtn" type="button">Inicio</button>
+      </div>
+      <div class="progress"><span id="topProgress"></span></div>
+    </header>
+
+    <main>
+      <section class="screen active" id="screenLoad">
+        <div class="panel">
+          <h2>Catalogo precargado</h2>
+          <p class="muted">El catalogo ya viene integrado en este archivo. Si necesitas reemplazarlo por otra base, carga un Excel/CSV con columnas ID y Articulo, o pega datos desde Excel.</p>
+        </div>
+        <div class="panel grid">
+          <label>
+            <span class="field-label">Archivo Excel</span>
+            <input id="excelFile" type="file" accept=".xlsx,.xls,.csv,.txt">
+          </label>
+          <div class="notice hidden" id="fileNotice"></div>
+          <label>
+            <span class="field-label">Datos pegados para reemplazar catalogo</span>
+            <textarea id="pasteBox" placeholder="ID	Producto&#10;100	Aceite vegetal 1L&#10;101	Azucar 1kg"></textarea>
+          </label>
+          <div class="grid two">
+            <button class="btn-secondary" id="demoBtn" type="button">Ejemplo</button>
+            <button class="btn-primary" id="loadBtn" type="button">Crear paquetes</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Reglas</h3>
+          <p class="muted">Sistema acepta negativos. Fisico solo acepta cero o positivos. Ajuste = fisico - sistema.</p>
+        </div>
+      </section>
+
+      <section class="screen" id="screenPackages">
+        <div class="panel">
+          <div class="row">
+            <div>
+              <h2>Seleccionar paquete</h2>
+              <p class="muted" id="inventorySummary"></p>
+            </div>
+            <button class="btn-secondary btn-mini" id="resetBtn" type="button">Limpiar</button>
+          </div>
+        </div>
+        <div class="package-list" id="packageList"></div>
+      </section>
+
+      <section class="screen" id="screenPackage">
+        <div class="panel">
+          <div class="row">
+            <div>
+              <h2 id="packageTitle">Paquete</h2>
+              <p class="muted" id="packageRange"></p>
+            </div>
+            <button class="btn-secondary btn-mini" id="backPackagesBtn" type="button">Paquetes</button>
+          </div>
+          <div class="progress"><span id="packageProgress"></span></div>
+        </div>
+        <div class="panel stats" id="packageStats"></div>
+        <div class="panel">
+          <h3>Grupos de 10</h3>
+          <div class="group-list" id="groupList"></div>
+        </div>
+        <div class="panel grid">
+          <button class="btn-primary" id="sharePdfBtn" type="button">Compartir PDF por WhatsApp</button>
+          <button class="btn-secondary" id="downloadPdfBtn" type="button">Descargar PDF</button>
+          <button class="btn-secondary" id="printPdfBtn" type="button">Imprimir / Guardar como PDF</button>
+          <button class="btn-secondary" id="exportCsvBtn" type="button">Exportar CSV</button>
+          <p class="muted" id="reportHelp">El PDF final se habilita hasta terminar todos los paquetes. En telefono podras compartirlo desde el menu nativo y elegir WhatsApp.</p>
+        </div>
+      </section>
+
+      <section class="screen" id="screenCapture">
+        <div class="panel">
+          <div class="row">
+            <div>
+              <h2 id="captureTitle">Captura</h2>
+              <p class="muted" id="captureSubtitle"></p>
+            </div>
+            <button class="btn-secondary btn-mini" id="exitGroupBtn" type="button">Salir</button>
+          </div>
+          <div class="stepper">
+            <div class="step" id="stepSystem">Sistema</div>
+            <div class="step" id="stepPhysical">Fisico</div>
+            <div class="step" id="stepReview">Revision</div>
+          </div>
+          <div class="progress"><span id="groupProgress"></span></div>
+        </div>
+
+        <div class="panel product-card" id="captureCard">
+          <div>
+            <div class="product-id" id="productId"></div>
+            <div class="product-name" id="productName"></div>
+          </div>
+          <div id="systemContext" class="muted"></div>
+          <label>
+            <span class="field-label" id="quantityLabel"></span>
+            <div class="quantity-row">
+              <button class="minus-btn" id="minusBtn" type="button">-</button>
+              <input id="quantityInput" type="text" inputmode="numeric" pattern="-?[0-9]*">
+            </div>
+          </label>
+          <div class="bottom-actions hidden" id="bottomActions">
+            <button class="btn-secondary" id="prevBtn" type="button">Anterior</button>
+            <button class="btn-primary" id="confirmBtn" type="button">Confirmar</button>
+          </div>
+          <div class="calc hidden" id="liveCalc"></div>
+          <div class="notice hidden" id="inputNotice"></div>
+        </div>
+
+        <div class="panel hidden" id="reviewPanel">
+          <h2>Revision del grupo</h2>
+          <div class="stats" id="groupStats"></div>
+          <div class="review-list" id="reviewList"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="printReport" class="hidden"></div>
+
+  <script>
+    const STORAGE_KEY = "validador_inventario_catalogo_v2";
+    const BATCH_SIZE = 50;
+    const GROUP_SIZE = 10;
+
+    const BUILT_IN_CATALOG = [
+          {
+                "id": "101",
+                "name": "ACEITE 1-2-3 1 L"
+          },
+          {
+                "id": "188",
+                "name": "ACEITE 1-2-3 500 ML"
+          },
+          {
+                "id": "102",
+                "name": "ACEITE 1-2-4 3.785 L"
+          },
+          {
+                "id": "374",
+                "name": "ACEITE AVE 800 ML"
+          },
+          {
+                "id": "919",
+                "name": "ACEITE CANOIL 1 L"
+          },
+          {
+                "id": "105",
+                "name": "ACEITE CAPULLO 755 ML"
+          },
+          {
+                "id": "417",
+                "name": "ACEITE CARBONELL 100 ML"
+          },
+          {
+                "id": "775",
+                "name": "ACEITE CARBONELL 250 ML"
+          },
+          {
+                "id": "458",
+                "name": "ACEITE CARBONELL 500 ML"
+          },
+          {
+                "id": "776",
+                "name": "ACEITE CARBONELL 750 ML"
+          },
+          {
+                "id": "107",
+                "name": "ACEITE CRISTAL GIRASOL 1 LT"
+          },
+          {
+                "id": "108",
+                "name": "ACEITE CRISTAL GIRASOL 1.5 L"
+          },
+          {
+                "id": "106",
+                "name": "ACEITE CRISTAL GIRASOL 5 L"
+          },
+          {
+                "id": "918",
+                "name": "ACEITE CRISTAL GIRASOL 500 ML"
+          },
+          {
+                "id": "921",
+                "name": "ACEITE CRISTAL MAIZ 1.5 L"
+          },
+          {
+                "id": "154",
+                "name": "ACEITE DE COCO EXTRA VIRGEN 420 ML"
+          },
+          {
+                "id": "1074",
+                "name": "ACEITE GLORIA DE MAIZ 850 ML"
+          },
+          {
+                "id": "115",
+                "name": "ACEITE KARTAMUS 900 ML"
+          },
+          {
+                "id": "116",
+                "name": "ACEITE NUTRIOLI 800 ML"
+          },
+          {
+                "id": "285",
+                "name": "ACEITE OLEICO"
+          },
+          {
+                "id": "1069",
+                "name": "ACEITE P/MUEBLES 3 EN 1 240 ML"
+          },
+          {
+                "id": "292",
+                "name": "ACEITUNA CARBONELL 180 G"
+          },
+          {
+                "id": "1052",
+                "name": "ACEITUNA YBARRA S/HUESO 170 G"
+          },
+          {
+                "id": "291",
+                "name": "ACEITUNAS CARBONELL 350 G"
+          },
+          {
+                "id": "563",
+                "name": "ADEREZO CLEMENTE 237 ML"
+          },
+          {
+                "id": "779",
+                "name": "AGUA E PURA 1 L"
+          },
+          {
+                "id": "1197",
+                "name": "AGUA E PURA 1.5 L"
+          },
+          {
+                "id": "780",
+                "name": "AGUA E PURA 600 ML"
+          },
+          {
+                "id": "927",
+                "name": "AIR WICK REPUESTO"
+          },
+          {
+                "id": "835",
+                "name": "AJAX AMONIA 1 L"
+          },
+          {
+                "id": "880",
+                "name": "AJAX BICLORO 388 G"
+          },
+          {
+                "id": "126",
+                "name": "AJAX BICLORO 582 G"
+          },
+          {
+                "id": "128",
+                "name": "ALADINO 340 G"
+          },
+          {
+                "id": "1093",
+                "name": "ALCOHOL 1 L"
+          },
+          {
+                "id": "1094",
+                "name": "ALCOHOL 250 ML"
+          },
+          {
+                "id": "1122",
+                "name": "ALCOHOL 500 ML"
+          },
+          {
+                "id": "1427",
+                "name": "ALUMINIO 10 M"
+          },
+          {
+                "id": "1056",
+                "name": "ALUMINIO 100 M"
+          },
+          {
+                "id": "1456",
+                "name": "ALUMINIO 400 M"
+          },
+          {
+                "id": "132",
+                "name": "ALUMINIO 50 M"
+          },
+          {
+                "id": "1440",
+                "name": "ALUMINIO 7 M"
+          },
+          {
+                "id": "1488",
+                "name": "ALUMINIO ALUPRACTIK C/50"
+          },
+          {
+                "id": "1076",
+                "name": "AMPER 473 ML"
+          },
+          {
+                "id": "1143",
+                "name": "ARIEL 250 G"
+          },
+          {
+                "id": "135",
+                "name": "ARIEL 4 K"
+          },
+          {
+                "id": "136",
+                "name": "ARIEL 500 G"
+          },
+          {
+                "id": "137",
+                "name": "ARIEL 850 G"
+          },
+          {
+                "id": "1422",
+                "name": "ARIEL CON DOWNY 750 G"
+          },
+          {
+                "id": "866",
+                "name": "ARIEL LIQUIDO 2.8 L"
+          },
+          {
+                "id": "142",
+                "name": "ARIEL LIQUIDO 5 L"
+          },
+          {
+                "id": "577",
+                "name": "ARROZ MEXICA 907 G"
+          },
+          {
+                "id": "150",
+                "name": "ARROZ OLE 900 G"
+          },
+          {
+                "id": "1455",
+                "name": "ARROZ PROGRESO 1K"
+          },
+          {
+                "id": "145",
+                "name": "ARROZ VERDE VALLE 1 K"
+          },
+          {
+                "id": "309",
+                "name": "ARROZ VERDE VALLE 250 G"
+          },
+          {
+                "id": "960",
+                "name": "ARROZ VERDE VALLE 500 G"
+          },
+          {
+                "id": "148",
+                "name": "ATUN DOLORES 133 G"
+          },
+          {
+                "id": "149",
+                "name": "ATUN DOLORES 295 G"
+          },
+          {
+                "id": "1425",
+                "name": "ATUN DOLORES ENSALADA CUP 135 G"
+          },
+          {
+                "id": "1054",
+                "name": "AVENA 3 MINUTOS 380 G"
+          },
+          {
+                "id": "1307",
+                "name": "AVENA 3 MINUTOS 610 G"
+          },
+          {
+                "id": "151",
+                "name": "AVENA QUAKER INSTANT 240 G"
+          },
+          {
+                "id": "152",
+                "name": "AVENA QUAKER OATS 1.19 K"
+          },
+          {
+                "id": "153",
+                "name": "AVENA QUAKER OATS 475 G"
+          },
+          {
+                "id": "2015",
+                "name": "AXE AEROSOL"
+          },
+          {
+                "id": "160",
+                "name": "AXION 1.4 L"
+          },
+          {
+                "id": "156",
+                "name": "AXION 2.8 L"
+          },
+          {
+                "id": "157",
+                "name": "AXION 400 ML"
+          },
+          {
+                "id": "490",
+                "name": "AXION 7 EN 1 AZUL 750 ML"
+          },
+          {
+                "id": "1357",
+                "name": "AXION 900 ML"
+          },
+          {
+                "id": "1284",
+                "name": "AXION PASTA 425 G"
+          },
+          {
+                "id": "161",
+                "name": "AZUCAR 1 K"
+          },
+          {
+                "id": "163",
+                "name": "AZUCAR SPLENDA 100 SOBRES"
+          },
+          {
+                "id": "891",
+                "name": "AZUCAR SPLENDA 100 SOBRES SUELTO"
+          },
+          {
+                "id": "875",
+                "name": "AZUCAR ZULKA 1 K"
+          },
+          {
+                "id": "741",
+                "name": "AZUCAR ZULKA MASCABADO 500 G"
+          },
+          {
+                "id": "258",
+                "name": "BABY SKY TOALLITA HUMEDA"
+          },
+          {
+                "id": "1269",
+                "name": "BARILLA 500 G"
+          },
+          {
+                "id": "806",
+                "name": "BARILLA LASAGNE 500G"
+          },
+          {
+                "id": "1210",
+                "name": "BARRINOLAS EQUILIBRIO NATURAL 210 G"
+          },
+          {
+                "id": "1309",
+                "name": "BARRINOLAS GRANOLA 300 G"
+          },
+          {
+                "id": "1211",
+                "name": "BARRINOLAS KIDS 125 G"
+          },
+          {
+                "id": "1213",
+                "name": "BARRINOLAS PROTEINA 215 G"
+          },
+          {
+                "id": "1175",
+                "name": "BETTY CROCKER 375 G"
+          },
+          {
+                "id": "948",
+                "name": "BIBERON EVENFLO C/3"
+          },
+          {
+                "id": "363",
+                "name": "BIBERON EVENFLO GD"
+          },
+          {
+                "id": "1035",
+                "name": "BIMBO BIMBOLLOS"
+          },
+          {
+                "id": "1016",
+                "name": "BIMBO BIMBUÑUELOS"
+          },
+          {
+                "id": "1004",
+                "name": "BIMBO BLANCO CH"
+          },
+          {
+                "id": "1002",
+                "name": "BIMBO BLANCO GD"
+          },
+          {
+                "id": "1011",
+                "name": "BIMBO BRANFRUT"
+          },
+          {
+                "id": "1036",
+                "name": "BIMBO COLCHONES"
+          },
+          {
+                "id": "1026",
+                "name": "BIMBO CONCHAS"
+          },
+          {
+                "id": "1010",
+                "name": "BIMBO DONAS AZUCARADAS"
+          },
+          {
+                "id": "1008",
+                "name": "BIMBO DONAS ESPOLVOREADAS"
+          },
+          {
+                "id": "1006",
+                "name": "BIMBO INTEGRAL CH"
+          },
+          {
+                "id": "1005",
+                "name": "BIMBO INTEGRAL GD"
+          },
+          {
+                "id": "240",
+                "name": "BIMBO LITTLE BITES 58 G"
+          },
+          {
+                "id": "1001",
+                "name": "BIMBO MADALENAS"
+          },
+          {
+                "id": "1031",
+                "name": "BIMBO MANTECADAS"
+          },
+          {
+                "id": "1017",
+                "name": "BIMBO MEDIAS NOCHES"
+          },
+          {
+                "id": "1007",
+                "name": "BIMBO NITO"
+          },
+          {
+                "id": "602",
+                "name": "BIMBO NITO DUO"
+          },
+          {
+                "id": "1027",
+                "name": "BIMBO PAN MOLIDO"
+          },
+          {
+                "id": "1025",
+                "name": "BIMBO PANQUE"
+          },
+          {
+                "id": "1015",
+                "name": "BIMBO PANQUECITOS"
+          },
+          {
+                "id": "1018",
+                "name": "BIMBO REBANADAS"
+          },
+          {
+                "id": "1014",
+                "name": "BIMBO ROLES"
+          },
+          {
+                "id": "1029",
+                "name": "BIMBO TOSTADO CLASICO"
+          },
+          {
+                "id": "824",
+                "name": "BIO VITAL 900 ML"
+          },
+          {
+                "id": "171",
+                "name": "BLANCA NIEVES 1 K"
+          },
+          {
+                "id": "974",
+                "name": "BLANCA NIEVES 10 K"
+          },
+          {
+                "id": "172",
+                "name": "BLANCA NIEVES 2 K"
+          },
+          {
+                "id": "173",
+                "name": "BLANCA NIEVES 250 G"
+          },
+          {
+                "id": "174",
+                "name": "BLANCA NIEVES 5 K"
+          },
+          {
+                "id": "175",
+                "name": "BLANCA NIEVES 500 G"
+          },
+          {
+                "id": "176",
+                "name": "BLANCA NIEVES LIQ. 1 L"
+          },
+          {
+                "id": "177",
+                "name": "BLANCA NIEVES LIQ. 3.785 L"
+          },
+          {
+                "id": "1482",
+                "name": "BLANCATEL 3.75 L"
+          },
+          {
+                "id": "696",
+                "name": "BLOQUEADOR SUNBEAT 90 G"
+          },
+          {
+                "id": "995",
+                "name": "BLUMEN 1050 ML"
+          },
+          {
+                "id": "358",
+                "name": "BLUMEN 221 ML"
+          },
+          {
+                "id": "912",
+                "name": "BLUMEN 525 ML"
+          },
+          {
+                "id": "545",
+                "name": "BOLD 3 DETERGENTE LIQUIDO 1 L"
+          },
+          {
+                "id": "134",
+                "name": "BOLD 3 POLVO 5 K"
+          },
+          {
+                "id": "450",
+                "name": "BOLD 3 POLVO 850 G"
+          },
+          {
+                "id": "451",
+                "name": "BOLD 3 SUAVIZANTE 1 L"
+          },
+          {
+                "id": "1058",
+                "name": "BOLD 3 SUAVIZANTE 3 L"
+          },
+          {
+                "id": "181",
+                "name": "BOLSA CAMISETA NEGRA 1 K"
+          },
+          {
+                "id": "598",
+                "name": "BOLSA PLASTICO TRANSPARENTE 1 K"
+          },
+          {
+                "id": "441",
+                "name": "BOLSA ROYO PARA LA BASURA"
+          },
+          {
+                "id": "1350",
+                "name": "BORLA SPASH"
+          },
+          {
+                "id": "144",
+                "name": "BOTANA HABA 100 G"
+          },
+          {
+                "id": "143",
+                "name": "BOTANA HABA 50 G"
+          },
+          {
+                "id": "887",
+                "name": "BOTANA PISTACHE 100 G"
+          },
+          {
+                "id": "888",
+                "name": "BOTANA PISTACHE 50 G"
+          },
+          {
+                "id": "1024",
+                "name": "BRASSO DESENGRASANTE 650 ML"
+          },
+          {
+                "id": "1394",
+                "name": "BREF LIMPIADOR 1 L"
+          },
+          {
+                "id": "552",
+                "name": "BRIDEN 100 ML"
+          },
+          {
+                "id": "956",
+                "name": "BRILOZA 1 K"
+          },
+          {
+                "id": "1003",
+                "name": "BRILOZA 250 G"
+          },
+          {
+                "id": "1161",
+                "name": "BRILOZA 500 G"
+          },
+          {
+                "id": "1129",
+                "name": "BRILOZA LIQUIDO 730 ML"
+          },
+          {
+                "id": "1208",
+                "name": "BROWNIES CAJA 907 G"
+          },
+          {
+                "id": "665",
+                "name": "CACAHUATES 250G"
+          },
+          {
+                "id": "1480",
+                "name": "CAFE LEGAL 100 G"
+          },
+          {
+                "id": "1447",
+                "name": "CAFE LEGAL 180 G"
+          },
+          {
+                "id": "1537",
+                "name": "CAFE LEGAL 50 G"
+          },
+          {
+                "id": "1521",
+                "name": "CAFE LEGAL DE OLLA 100 G"
+          },
+          {
+                "id": "910",
+                "name": "CAFE LEGAL DE OLLA 180 G"
+          },
+          {
+                "id": "1520",
+                "name": "CAFE LEGAL DE OLLA 50 G"
+          },
+          {
+                "id": "1441",
+                "name": "CAFE MARINO"
+          },
+          {
+                "id": "827",
+                "name": "CAFE ORO 200 G"
+          },
+          {
+                "id": "900",
+                "name": "CAFE ORO 24 KILATES 160 G"
+          },
+          {
+                "id": "826",
+                "name": "CAFE ORO 50 G"
+          },
+          {
+                "id": "1468",
+                "name": "CAFE PORTALES 170 G"
+          },
+          {
+                "id": "1275",
+                "name": "CAL C TOSE 420 G"
+          },
+          {
+                "id": "221",
+                "name": "CAL-C-TOSE 65 G"
+          },
+          {
+                "id": "401",
+                "name": "CALAHUA CREMA DE COCO 1 L"
+          },
+          {
+                "id": "982",
+                "name": "CAMBELLS CREMA DE CHAMPIÑON 300 G"
+          },
+          {
+                "id": "805",
+                "name": "CANELA 50 G"
+          },
+          {
+                "id": "192",
+                "name": "CAPRICE 750 ML"
+          },
+          {
+                "id": "893",
+                "name": "CAPRICE SPRAY 316 ML"
+          },
+          {
+                "id": "1380",
+                "name": "CARAMELO ICE 85 G"
+          },
+          {
+                "id": "752",
+                "name": "CARBON VEGETAL"
+          },
+          {
+                "id": "718",
+                "name": "CARBONATO 250 G"
+          },
+          {
+                "id": "942",
+                "name": "CARISMA BARRA 400 G"
+          },
+          {
+                "id": "198",
+                "name": "CARISMA DET. 1 K"
+          },
+          {
+                "id": "202",
+                "name": "CARISMA DET. 2 K"
+          },
+          {
+                "id": "199",
+                "name": "CARISMA DET. 250 G"
+          },
+          {
+                "id": "200",
+                "name": "CARISMA DET. 500 G"
+          },
+          {
+                "id": "201",
+                "name": "CARISMA DET. LIQUIDO 1 L"
+          },
+          {
+                "id": "543",
+                "name": "CARISMA DET. LIQUIDO 10 L"
+          },
+          {
+                "id": "203",
+                "name": "CARISMA DET. LIQUIDO 3.785 L"
+          },
+          {
+                "id": "009",
+                "name": "CARISMA ESCAMAS 500 G"
+          },
+          {
+                "id": "762",
+                "name": "CARISMA SUAVITEL  1 L"
+          },
+          {
+                "id": "763",
+                "name": "CARISMA SUAVITEL 3.785 L"
+          },
+          {
+                "id": "1500",
+                "name": "CARLOS V SUIZO C/16"
+          },
+          {
+                "id": "1462",
+                "name": "CARNATION CALVEL 360 G TETRA"
+          },
+          {
+                "id": "205",
+                "name": "CARNATION CLAVEL 360 G LATA"
+          },
+          {
+                "id": "432",
+                "name": "CARNATION CLAVEL 990 ML"
+          },
+          {
+                "id": "206",
+                "name": "CATSUP CLEMENTE JACQUES 220 G"
+          },
+          {
+                "id": "207",
+                "name": "CATSUP CLEMENTE JACQUES 340 G"
+          },
+          {
+                "id": "215",
+                "name": "CATSUP CLEMENTE JACQUES 680 G"
+          },
+          {
+                "id": "216",
+                "name": "CATSUP CLEMENTE JACQUES 970 G"
+          },
+          {
+                "id": "573",
+                "name": "CATSUP DEL MONTE 320 G"
+          },
+          {
+                "id": "211",
+                "name": "CATSUP EMBASA 1 L"
+          },
+          {
+                "id": "210",
+                "name": "CATSUP EMBASA 380 G"
+          },
+          {
+                "id": "430",
+                "name": "CEREAL CHEERIOS 650 G"
+          },
+          {
+                "id": "831",
+                "name": "CEREAL LA COSECHA 500 G"
+          },
+          {
+                "id": "1510",
+                "name": "CEREAL NESQUIK CHOCO VAINILLA 300 G"
+          },
+          {
+                "id": "429",
+                "name": "CEREAL TRIX 650 G"
+          },
+          {
+                "id": "1461",
+                "name": "CERILLOS C/10"
+          },
+          {
+                "id": "1494",
+                "name": "CERILLOS FLAMA CJ C/115"
+          },
+          {
+                "id": "1236",
+                "name": "CHAMOY MEGA 370 G"
+          },
+          {
+                "id": "1021",
+                "name": "CHAMPIÑONES REBANADOS 186 G"
+          },
+          {
+                "id": "104",
+                "name": "CHEERIOS MIEL 480 G"
+          },
+          {
+                "id": "1180",
+                "name": "CHIMI TOALLITA HUMEDA"
+          },
+          {
+                "id": "640",
+                "name": "CHOCO MILK MORELIA 840 G"
+          },
+          {
+                "id": "1091",
+                "name": "CHOCO MILK PANCHO PANTERA 400 G LATA"
+          },
+          {
+                "id": "220",
+                "name": "CHOCO MILK PANCHO PANTERA 420 G"
+          },
+          {
+                "id": "219",
+                "name": "CHOCOLATE ABUELITA"
+          },
+          {
+                "id": "438",
+                "name": "CHOCOLATE ABUELITA PACK + NESCAFE"
+          },
+          {
+                "id": "829",
+                "name": "CHOCOLATE ABUELITA POLVO 320 G"
+          },
+          {
+                "id": "1446",
+                "name": "CHOCOLATE IBARRA"
+          },
+          {
+                "id": "225",
+                "name": "CLORALEX 10 L"
+          },
+          {
+                "id": "226",
+                "name": "CLORALEX 2 L"
+          },
+          {
+                "id": "227",
+                "name": "CLORALEX 3.785 L"
+          },
+          {
+                "id": "229",
+                "name": "CLORALEX 950 ML"
+          },
+          {
+                "id": "230",
+                "name": "CLORALEX BAÑOS 650 ML"
+          },
+          {
+                "id": "169",
+                "name": "CLORALEX DESINFECTANTE AEROSOL 400 ML"
+          },
+          {
+                "id": "232",
+                "name": "CLORALEX GEL 950 ML"
+          },
+          {
+                "id": "234",
+                "name": "CLORALEX MASCOTAS 930 ML"
+          },
+          {
+                "id": "1301",
+                "name": "CLORALEX PASTILLA BAÑOS"
+          },
+          {
+                "id": "170",
+                "name": "CLORALEX PASTILLA BAÑOS AZUL 40 G C/2"
+          },
+          {
+                "id": "178",
+                "name": "CLORALEX PASTILLA BAÑOS LAVANDA 40 G"
+          },
+          {
+                "id": "1302",
+                "name": "CLORALEX QUITAMANCHAS COLOR 950 ML"
+          },
+          {
+                "id": "231",
+                "name": "CLORALEX TOTAL POWER 650 ML"
+          },
+          {
+                "id": "233",
+                "name": "CLORALEX ULTRA GEL 600 ML"
+          },
+          {
+                "id": "1310",
+                "name": "CLORALEX ULTRA GEL 950 ML"
+          },
+          {
+                "id": "872",
+                "name": "CLORALEX VINAGRE 950 ML"
+          },
+          {
+                "id": "236",
+                "name": "CLOROX 1.89 L"
+          },
+          {
+                "id": "235",
+                "name": "CLOROX 10 L"
+          },
+          {
+                "id": "238",
+                "name": "CLOROX 930 ML"
+          },
+          {
+                "id": "237",
+                "name": "CLOROX ROPA COLOR 1.89 L"
+          },
+          {
+                "id": "241",
+                "name": "CLOROX ROPA COLOR 930 ML"
+          },
+          {
+                "id": "1330",
+                "name": "COCA COLA 600 ML"
+          },
+          {
+                "id": "572",
+                "name": "COCO 250 G"
+          },
+          {
+                "id": "966",
+                "name": "COFFE MATE 1.2 k"
+          },
+          {
+                "id": "837",
+                "name": "COFFE MATE EXIBIDOR"
+          },
+          {
+                "id": "979",
+                "name": "COFFE MATE VAINILLA 400 G"
+          },
+          {
+                "id": "936",
+                "name": "COFFE-MATE VAINILLA EXIBIDOR"
+          },
+          {
+                "id": "800",
+                "name": "COFFEE MATE 400 G"
+          },
+          {
+                "id": "254",
+                "name": "COFFEE-MATE 160 G"
+          },
+          {
+                "id": "257",
+                "name": "COFFEE-MATE 311 G"
+          },
+          {
+                "id": "963",
+                "name": "COFFEE-MATE EXTRA CREMOSO 365 G"
+          },
+          {
+                "id": "259",
+                "name": "COFFEE-MATE LIQUIDO"
+          },
+          {
+                "id": "1292",
+                "name": "COLGATE CEPILLO C/2"
+          },
+          {
+                "id": "212",
+                "name": "COLGATE CEPILLO EXIVIDOR"
+          },
+          {
+                "id": "1188",
+                "name": "COLGATE CEPILLO KIDS"
+          },
+          {
+                "id": "1198",
+                "name": "COLGATE ENJUAGUE LUMINUS 250 ML"
+          },
+          {
+                "id": "1996",
+                "name": "COLGATE KIDS 50 G"
+          },
+          {
+                "id": "1420",
+                "name": "COLGATE LUMINUS WHITE 125 ML"
+          },
+          {
+                "id": "204",
+                "name": "COLGATE LUMINUS WHITE 66 ML"
+          },
+          {
+                "id": "166",
+                "name": "COLGATE M.P.A 100 ML"
+          },
+          {
+                "id": "261",
+                "name": "COLGATE M.P.A 150 ML"
+          },
+          {
+                "id": "1199",
+                "name": "COLGATE M.P.A 75 ML"
+          },
+          {
+                "id": "263",
+                "name": "COLGATE TOTAL 12 150 ML"
+          },
+          {
+                "id": "265",
+                "name": "COLGATE TRIPLE ACCION 140 ML"
+          },
+          {
+                "id": "1200",
+                "name": "COLGATE TRIPLE ACCION 75 ML"
+          },
+          {
+                "id": "350",
+                "name": "COMODISEC TOALLITA HUMEDA C/80"
+          },
+          {
+                "id": "790",
+                "name": "CONTENEDOR 1 L"
+          },
+          {
+                "id": "1368",
+                "name": "CONTENEDOR 1/2 L"
+          },
+          {
+                "id": "267",
+                "name": "COSTA BRAVA 1 L"
+          },
+          {
+                "id": "1525",
+                "name": "COSTA BRAVA 1.5 L"
+          },
+          {
+                "id": "1475",
+                "name": "COSTA BRAVA 370 ML"
+          },
+          {
+                "id": "580",
+                "name": "COSTA BRAVA 4 L"
+          },
+          {
+                "id": "1424",
+                "name": "COTONETE J&J C/150"
+          },
+          {
+                "id": "123",
+                "name": "COTONETES BAMBUNETES C/300"
+          },
+          {
+                "id": "1399",
+                "name": "CREMA REAL"
+          },
+          {
+                "id": "482",
+                "name": "CREMA TEATRICAL 400 G"
+          },
+          {
+                "id": "1517",
+                "name": "CREST COMPLETE 100 ML"
+          },
+          {
+                "id": "1315",
+                "name": "CROQUETA CHAPETES ADULTO 20 K"
+          },
+          {
+                "id": "1267",
+                "name": "CROQUETA CHAPETES CACHORRO 18 K"
+          },
+          {
+                "id": "1397",
+                "name": "CROQUETA CHAPETES GATO 15 K"
+          },
+          {
+                "id": "274",
+                "name": "CROQUETA DOG CHAO ADULTO 25 K"
+          },
+          {
+                "id": "273",
+                "name": "CROQUETA DOG CHAO CACHORRO 20 K"
+          },
+          {
+                "id": "1476",
+                "name": "CROQUETA DOG DOJO 5 K"
+          },
+          {
+                "id": "860",
+                "name": "CROQUETA ESENCIAL ADULTO 20 K"
+          },
+          {
+                "id": "1433",
+                "name": "CROQUETA ESENCIAL CACHORRO 20 K"
+          },
+          {
+                "id": "1140",
+                "name": "CROQUETA GANADOR 20 K"
+          },
+          {
+                "id": "1141",
+                "name": "CROQUETA GANADOR PREMIUM 20 K"
+          },
+          {
+                "id": "276",
+                "name": "CROQUETA MININO 15 K"
+          },
+          {
+                "id": "277",
+                "name": "CROQUETA PEDIGREE ADULTO 20 K"
+          },
+          {
+                "id": "278",
+                "name": "CROQUETA PEDIGREE CACHORRO 20 K"
+          },
+          {
+                "id": "279",
+                "name": "CROQUETA PEDIGREE SOBRE"
+          },
+          {
+                "id": "1101",
+                "name": "CROQUETA PERRON 25 K"
+          },
+          {
+                "id": "1396",
+                "name": "CROQUETA PERRON CACHORRO"
+          },
+          {
+                "id": "214",
+                "name": "CROQUETA WISKAS 20 K"
+          },
+          {
+                "id": "1313",
+                "name": "CROQUETA WISKAS SOBRE"
+          },
+          {
+                "id": "1489",
+                "name": "CRUNCH WICKED 221 G"
+          },
+          {
+                "id": "1406",
+                "name": "CUCHARA CHICA / MEDIANA"
+          },
+          {
+                "id": "283",
+                "name": "CUCHARA GDE 25 PZ"
+          },
+          {
+                "id": "756",
+                "name": "CUCHARA TENEDOR 500 G"
+          },
+          {
+                "id": "415",
+                "name": "D' GARI JARABE MAPLE 250 ML"
+          },
+          {
+                "id": "414",
+                "name": "D' GARI VAINILLA 500 ML"
+          },
+          {
+                "id": "370",
+                "name": "DAWN 1.2 L"
+          },
+          {
+                "id": "296",
+                "name": "DAWN 2.66  L"
+          },
+          {
+                "id": "365",
+                "name": "DAWN 750 ML"
+          },
+          {
+                "id": "517",
+                "name": "DE LA ROSA CHOCOLATE SUIZO 288 G"
+          },
+          {
+                "id": "1415",
+                "name": "DELIGHT 946 ML"
+          },
+          {
+                "id": "299",
+                "name": "DET. ACE 250 G"
+          },
+          {
+                "id": "1050",
+                "name": "DET. ACE 4.32 K"
+          },
+          {
+                "id": "301",
+                "name": "DET. ACE 500 G"
+          },
+          {
+                "id": "297",
+                "name": "DET. ACE 800 G"
+          },
+          {
+                "id": "305",
+                "name": "DET. ACE LIQUIDO 4.85 L"
+          },
+          {
+                "id": "408",
+                "name": "DET. ACE NATURALS 800 G"
+          },
+          {
+                "id": "1477",
+                "name": "DET. MAS COLOR 1.83 L"
+          },
+          {
+                "id": "312",
+                "name": "DET. MAS COLOR 10 L"
+          },
+          {
+                "id": "310",
+                "name": "DET. MAS COLOR 4.65 L"
+          },
+          {
+                "id": "311",
+                "name": "DET. MAS COLOR 415 ML"
+          },
+          {
+                "id": "308",
+                "name": "DET. MAS COLOR 830 ML"
+          },
+          {
+                "id": "1049",
+                "name": "DET. PERSIL 6.64 L"
+          },
+          {
+                "id": "2019",
+                "name": "DET. PERSIL 9 L"
+          },
+          {
+                "id": "1105",
+                "name": "DODYS PAÑAL CHICO"
+          },
+          {
+                "id": "111",
+                "name": "DODYS PAÑAL EXTRA JUMBO"
+          },
+          {
+                "id": "110",
+                "name": "DODYS PAÑAL JUMBO"
+          },
+          {
+                "id": "1106",
+                "name": "DODYS PAÑAL MEDIANO"
+          },
+          {
+                "id": "250",
+                "name": "DODYS TOALLITA HUMEDA ADULTO"
+          },
+          {
+                "id": "270",
+                "name": "DODYS TOALLITA HUMEDA C/80"
+          },
+          {
+                "id": "318",
+                "name": "DOS HERMANOS CHOCOLATE"
+          },
+          {
+                "id": "319",
+                "name": "DOVE AEROSOL 103 G"
+          },
+          {
+                "id": "681",
+                "name": "DOVE BARRA 45 G"
+          },
+          {
+                "id": "821",
+                "name": "DOVE JABON 135 G"
+          },
+          {
+                "id": "140",
+                "name": "DOVE SHAMPOO 1 L"
+          },
+          {
+                "id": "652",
+                "name": "DOVE SHAMPOO 350 ML"
+          },
+          {
+                "id": "328",
+                "name": "DOWNY 2.8 L"
+          },
+          {
+                "id": "329",
+                "name": "DOWNY 730 ML"
+          },
+          {
+                "id": "331",
+                "name": "DOWNY 8.5 L"
+          },
+          {
+                "id": "326",
+                "name": "DOWNY INTENSE 567 ML"
+          },
+          {
+                "id": "217",
+                "name": "DOWNY INTENSE GARDEN 1 L"
+          },
+          {
+                "id": "218",
+                "name": "DOWNY INTENSE VAINILLA 1 L"
+          },
+          {
+                "id": "1038",
+                "name": "DOWNY PERLAS 34 OZ"
+          },
+          {
+                "id": "323",
+                "name": "DOWNY PERLAS 5 OZ"
+          },
+          {
+                "id": "1495",
+                "name": "DULCE HALLS 25.2 G"
+          },
+          {
+                "id": "1402",
+                "name": "DULCE HUBBA BUBBA"
+          },
+          {
+                "id": "720",
+                "name": "DULCE MAZAPAN DE LA ROSA 840 G"
+          },
+          {
+                "id": "1464",
+                "name": "DULCE MILKY SNIKER M&M"
+          },
+          {
+                "id": "1439",
+                "name": "DULCE SUELTO 500 G"
+          },
+          {
+                "id": "333",
+                "name": "DURAZNOS MITADES 820 G"
+          },
+          {
+                "id": "1505",
+                "name": "DUVALIN 270 G"
+          },
+          {
+                "id": "1121",
+                "name": "EASY OFF 238 G"
+          },
+          {
+                "id": "243",
+                "name": "EASY-OFF AEROSOL"
+          },
+          {
+                "id": "1075",
+                "name": "ELITE SERVITOALLA 180 H"
+          },
+          {
+                "id": "334",
+                "name": "ENCENDEDOR BIC"
+          },
+          {
+                "id": "294",
+                "name": "ENCENDEDOR ECONOMICO"
+          },
+          {
+                "id": "1365",
+                "name": "ENCENDEDOR TOKAI"
+          },
+          {
+                "id": "1287",
+                "name": "ENSUEÑO 5.1 L"
+          },
+          {
+                "id": "338",
+                "name": "ENSUEÑO 850 ML"
+          },
+          {
+                "id": "339",
+                "name": "ENSUEÑO 9 L"
+          },
+          {
+                "id": "1452",
+                "name": "ENSURE AMERICANO"
+          },
+          {
+                "id": "1261",
+                "name": "ENSURE NACIONAL"
+          },
+          {
+                "id": "100",
+                "name": "ESPECIAS M.C. ABLANDADOR DE CARNE 155 G"
+          },
+          {
+                "id": "223",
+                "name": "ESPECIAS M.C. AJO EN POLVO 77 G"
+          },
+          {
+                "id": "224",
+                "name": "ESPECIAS M.C. AJO MANTEQUILLA 72 G"
+          },
+          {
+                "id": "190",
+                "name": "ESPECIAS M.C. CANELA MOLIDA 63 G"
+          },
+          {
+                "id": "195",
+                "name": "ESPECIAS M.C. CEBOLLA EN POLVO 70 G"
+          },
+          {
+                "id": "147",
+                "name": "ESPECIAS M.C. COMINO MOLIDO 55 G"
+          },
+          {
+                "id": "1080",
+                "name": "ESPECIAS M.C. PAPRIKA 47 G"
+          },
+          {
+                "id": "242",
+                "name": "ESPECIAS M.C. PIMIENTA LIMON 350 G"
+          },
+          {
+                "id": "179",
+                "name": "ESPECIAS M.C. PIMIENTA LIMON 75 G"
+          },
+          {
+                "id": "722",
+                "name": "ESPECIAS M.C. SAL CON AJO 125 GR"
+          },
+          {
+                "id": "1040",
+                "name": "ESPECIAS M.C. SAL CON AJO 520 GR"
+          },
+          {
+                "id": "141",
+                "name": "ESPECIAS M.C. SAL CON CEBOLLA 126 G"
+          },
+          {
+                "id": "146",
+                "name": "ESPECIAS M.C. SAL CON CHILE Y LIMON 104 G"
+          },
+          {
+                "id": "228",
+                "name": "ESPECIAS M.C. SAL CON HIERBAS FINAS 360 G"
+          },
+          {
+                "id": "342",
+                "name": "FABULOSO 1 L"
+          },
+          {
+                "id": "343",
+                "name": "FABULOSO 10 L"
+          },
+          {
+                "id": "501",
+                "name": "FIBRA FCP23"
+          },
+          {
+                "id": "1235",
+                "name": "FIBRA FIBROX JUMBO"
+          },
+          {
+                "id": "830",
+                "name": "FIBRA FIERRO CHICA"
+          },
+          {
+                "id": "1020",
+                "name": "FIBRA FREGON"
+          },
+          {
+                "id": "841",
+                "name": "FIBRA SCOTCH BRITE CLASICA"
+          },
+          {
+                "id": "1416",
+                "name": "FIBRA SCOTCH BRITE ESPIRAL METALICO"
+          },
+          {
+                "id": "1417",
+                "name": "FIBRA SCOTCH BRITE LIMPIEZA DELICADA"
+          },
+          {
+                "id": "1177",
+                "name": "FIBRA SCOTCH BRITE TELA"
+          },
+          {
+                "id": "970",
+                "name": "FIBRA SCOTCH BRITE VERDE CH"
+          },
+          {
+                "id": "1320",
+                "name": "FIBRA SCOTCH BRITE VERDE GD"
+          },
+          {
+                "id": "868",
+                "name": "FIBRA TALLON"
+          },
+          {
+                "id": "1288",
+                "name": "FIBROX PASTILLAS DE CLORO C/4"
+          },
+          {
+                "id": "351",
+                "name": "FOCA 1 K"
+          },
+          {
+                "id": "352",
+                "name": "FOCA 2 K"
+          },
+          {
+                "id": "353",
+                "name": "FOCA 250 GR"
+          },
+          {
+                "id": "355",
+                "name": "FOCA 5 K"
+          },
+          {
+                "id": "354",
+                "name": "FOCA 500 GR"
+          },
+          {
+                "id": "356",
+                "name": "FOCA LIQUIDO 1 L"
+          },
+          {
+                "id": "129",
+                "name": "FOCA LIQUIDO 10 L"
+          },
+          {
+                "id": "357",
+                "name": "FOCA LIQUIDO 3.78 5 L"
+          },
+          {
+                "id": "1364",
+                "name": "FOCO EVEREADY"
+          },
+          {
+                "id": "1110",
+                "name": "FRUCTIS 300 ML"
+          },
+          {
+                "id": "1379",
+                "name": "FRUCTIS C/P PEINAR 300 ML"
+          },
+          {
+                "id": "1212",
+                "name": "FRUCTIS TRATAMIENTO"
+          },
+          {
+                "id": "391",
+                "name": "GALLETA ANIMALITOS 1 K"
+          },
+          {
+                "id": "393",
+                "name": "GALLETA ARCOIRIS 670 G"
+          },
+          {
+                "id": "395",
+                "name": "GALLETA BARRA DE COCO 490 G"
+          },
+          {
+                "id": "906",
+                "name": "GALLETA CHIPS AHOY 82.8 G"
+          },
+          {
+                "id": "397",
+                "name": "GALLETA CHOCOLATINES 252 G"
+          },
+          {
+                "id": "399",
+                "name": "GALLETA CHOKIS 399 G"
+          },
+          {
+                "id": "400",
+                "name": "GALLETA CRACKETS 135 G"
+          },
+          {
+                "id": "403",
+                "name": "GALLETA CREMAX 213G"
+          },
+          {
+                "id": "1150",
+                "name": "GALLETA EMPERADOR 382 G"
+          },
+          {
+                "id": "1280",
+                "name": "GALLETA EMPERADOR 424 G"
+          },
+          {
+                "id": "405",
+                "name": "GALLETA FLOR DE NARANJO 500 G"
+          },
+          {
+                "id": "964",
+                "name": "GALLETA FLORENTINAS"
+          },
+          {
+                "id": "361",
+                "name": "GALLETA GIRO 228 G"
+          },
+          {
+                "id": "540",
+                "name": "GALLETA HABANERA 117 G"
+          },
+          {
+                "id": "406",
+                "name": "GALLETA HAWAIANA 480 G"
+          },
+          {
+                "id": "332",
+                "name": "GALLETA MAMUT 240 G"
+          },
+          {
+                "id": "1426",
+                "name": "GALLETA MARAVILLAS 348 G"
+          },
+          {
+                "id": "409",
+                "name": "GALLETA MARIA DORADA 278 G"
+          },
+          {
+                "id": "410",
+                "name": "GALLETA MARIA GAMESA 850 G"
+          },
+          {
+                "id": "828",
+                "name": "GALLETA MARIA GAMESA ROLLO 510 G"
+          },
+          {
+                "id": "411",
+                "name": "GALLETA MARIA ROLLO 170 G"
+          },
+          {
+                "id": "859",
+                "name": "GALLETA MARIBEL BETUNADAS 600 G"
+          },
+          {
+                "id": "412",
+                "name": "GALLETA MARINAS BETUNADAS 1 K"
+          },
+          {
+                "id": "1023",
+                "name": "GALLETA MARINELA"
+          },
+          {
+                "id": "735",
+                "name": "GALLETA MARINELA BARRITAS 402 G"
+          },
+          {
+                "id": "262",
+                "name": "GALLETA MARINELA MINI"
+          },
+          {
+                "id": "1333",
+                "name": "GALLETA MINI MAMUT 336 G"
+          },
+          {
+                "id": "1504",
+                "name": "GALLETA OREO 10.5 K"
+          },
+          {
+                "id": "413",
+                "name": "GALLETA OREO 105 G"
+          },
+          {
+                "id": "1037",
+                "name": "GALLETA OREO 252 G"
+          },
+          {
+                "id": "436",
+                "name": "GALLETA OREO 307.8 G"
+          },
+          {
+                "id": "753",
+                "name": "GALLETA OREO FUDGE"
+          },
+          {
+                "id": "1260",
+                "name": "GALLETA OREO MINI 226 G"
+          },
+          {
+                "id": "300",
+                "name": "GALLETA PEKEPAKES 374 G"
+          },
+          {
+                "id": "418",
+                "name": "GALLETA POLVORONES GAMESA 432 G"
+          },
+          {
+                "id": "419",
+                "name": "GALLETA POPULARES 1 K"
+          },
+          {
+                "id": "420",
+                "name": "GALLETA RICANELA 486 G"
+          },
+          {
+                "id": "421",
+                "name": "GALLETA SALADA 1.2 K"
+          },
+          {
+                "id": "423",
+                "name": "GALLETA SALADA 186 G"
+          },
+          {
+                "id": "840",
+                "name": "GALLETA SAURIS"
+          },
+          {
+                "id": "1305",
+                "name": "GALLETA SURTIDO RICO 424.8 G"
+          },
+          {
+                "id": "1051",
+                "name": "GARBANZO 500 G"
+          },
+          {
+                "id": "1012",
+                "name": "GATORADE 1 L"
+          },
+          {
+                "id": "125",
+                "name": "GATORADE 350 ML"
+          },
+          {
+                "id": "1060",
+                "name": "GATORADE 600 ML"
+          },
+          {
+                "id": "251",
+                "name": "GEL BARBER"
+          },
+          {
+                "id": "931",
+                "name": "GEL EGO 200 G"
+          },
+          {
+                "id": "901",
+                "name": "GEL EGO 950 ML"
+          },
+          {
+                "id": "1118",
+                "name": "GEL FIX"
+          },
+          {
+                "id": "1392",
+                "name": "GEL MOCO DE GORILA 80 G"
+          },
+          {
+                "id": "252",
+                "name": "GEL XTREME 1 K"
+          },
+          {
+                "id": "256",
+                "name": "GEL XTREME 250 G"
+          },
+          {
+                "id": "428",
+                "name": "GELATINA D' GARI"
+          },
+          {
+                "id": "416",
+                "name": "GELATINA D' GARI SIN AZUCAR"
+          },
+          {
+                "id": "431",
+                "name": "GERBER"
+          },
+          {
+                "id": "892",
+                "name": "GERBER POUCH 95 G"
+          },
+          {
+                "id": "1470",
+                "name": "GILLETE GEL 45 G"
+          },
+          {
+                "id": "908",
+                "name": "GILLETE GEL 82 G"
+          },
+          {
+                "id": "856",
+                "name": "GLADE AROMATIZANTE 400 ML"
+          },
+          {
+                "id": "368",
+                "name": "GLADE GEL 70 G"
+          },
+          {
+                "id": "159",
+                "name": "GLICERINA 500 ML"
+          },
+          {
+                "id": "1451",
+                "name": "GLUSERNA AMERICANA"
+          },
+          {
+                "id": "839",
+                "name": "GLUSERNA NACIONAL"
+          },
+          {
+                "id": "222",
+                "name": "GOMITA PEELERZ"
+          },
+          {
+                "id": "506",
+                "name": "GUANTE ROJO STINADO"
+          },
+          {
+                "id": "774",
+                "name": "HARINA DE ARROZ 500 G"
+          },
+          {
+                "id": "842",
+                "name": "HARINA HOT CAKE KRUST 4.5 K"
+          },
+          {
+                "id": "952",
+                "name": "HARINA SELECTA 1 K"
+          },
+          {
+                "id": "367",
+                "name": "HARPIC 200 ML"
+          },
+          {
+                "id": "1268",
+                "name": "HARPIC 750 ML"
+          },
+          {
+                "id": "1285",
+                "name": "HARPIC PASTILLA PARA BAÑO 35 G"
+          },
+          {
+                "id": "437",
+                "name": "HEAD SH 1L"
+          },
+          {
+                "id": "1109",
+                "name": "HEAD SH 375 ML"
+          },
+          {
+                "id": "133",
+                "name": "HEAD SH PACK 375+180 ML"
+          },
+          {
+                "id": "389",
+                "name": "HEINZ KETCHUP 397 G"
+          },
+          {
+                "id": "635",
+                "name": "HEINZ MAYONESA 390 G"
+          },
+          {
+                "id": "636",
+                "name": "HEINZ MOSTAZA 380 G"
+          },
+          {
+                "id": "1341",
+                "name": "HERBAL CREMA P/PEINAR"
+          },
+          {
+                "id": "452",
+                "name": "HERBAL ESSENCES 1 L"
+          },
+          {
+                "id": "321",
+                "name": "HERBAL ESSENCES 400 ML"
+          },
+          {
+                "id": "453",
+                "name": "HERBAL ESSENCES 865 ML"
+          },
+          {
+                "id": "442",
+                "name": "HERBAL ESSENCES MUSS"
+          },
+          {
+                "id": "1342",
+                "name": "HERBAL MASCARILLA 300 ML"
+          },
+          {
+                "id": "443",
+                "name": "HERSHEY´S JARABE 680 ML"
+          },
+          {
+                "id": "899",
+                "name": "HIG. BIG QUALITY 550 H"
+          },
+          {
+                "id": "445",
+                "name": "HIG. BIG QUALITY 600 H"
+          },
+          {
+                "id": "282",
+                "name": "HIG. BIG ROLL C/6 600 H"
+          },
+          {
+                "id": "440",
+                "name": "HIG. COTTONELLE ELEGANCE C/32"
+          },
+          {
+                "id": "1463",
+                "name": "HIG. COTTONELLE SOFT C/40"
+          },
+          {
+                "id": "758",
+                "name": "HIG. PETALO RENDIMAX C/12 300 H"
+          },
+          {
+                "id": "930",
+                "name": "HIG. REGIO 375 H C/6"
+          },
+          {
+                "id": "1084",
+                "name": "HIG. REGIO 600 H C/4"
+          },
+          {
+                "id": "1529",
+                "name": "HIG. REGIO JUST1 115 H C/6"
+          },
+          {
+                "id": "1528",
+                "name": "HIG. REGIO LUXIRY ALMOND 180 HD C/4"
+          },
+          {
+                "id": "168",
+                "name": "HIG. REGIO RINDE MAS 280 H C/18+6"
+          },
+          {
+                "id": "1204",
+                "name": "HIG. VOGUE 400 H C/4"
+          },
+          {
+                "id": "187",
+                "name": "HIG. VOGUE 600 H C/4"
+          },
+          {
+                "id": "454",
+                "name": "HINDS 400 G"
+          },
+          {
+                "id": "1660",
+                "name": "HONEY BUNCHES 1.13 KG"
+          },
+          {
+                "id": "1312",
+                "name": "HOT CAKES CUETARA 800 G"
+          },
+          {
+                "id": "427",
+                "name": "HOT CAKES GAMESA 500 G"
+          },
+          {
+                "id": "457",
+                "name": "HOT CAKES GAMESA 850 G"
+          },
+          {
+                "id": "1381",
+                "name": "HOT CAKES TRES ESTRELLAS"
+          },
+          {
+                "id": "699",
+                "name": "HUEVO 1 K"
+          },
+          {
+                "id": "1181",
+                "name": "HUGGIES SUPREME 1 C/40"
+          },
+          {
+                "id": "369",
+                "name": "HUGGIES SUPREME 2 C/40"
+          },
+          {
+                "id": "759",
+                "name": "HUGGIES SUPREME 3 C/36"
+          },
+          {
+                "id": "876",
+                "name": "HUGGIES SUPREME 4 C/36"
+          },
+          {
+                "id": "848",
+                "name": "HUGGIES SUPREME 5 C/36"
+          },
+          {
+                "id": "844",
+                "name": "HUGGIES SUPREME 6 C/36"
+          },
+          {
+                "id": "1299",
+                "name": "HUGGIES SUPREME JABON 80 G"
+          },
+          {
+                "id": "845",
+                "name": "HUGGIES SUPREME RN C/40"
+          },
+          {
+                "id": "1294",
+                "name": "HUGGIES SUPREME SHAMPOO 2 EN 1 200 ML"
+          },
+          {
+                "id": "1298",
+                "name": "HUGGIES SUPREME SHAMPOO 200 ML"
+          },
+          {
+                "id": "459",
+                "name": "HUGGIES SUPREME TOALLITA HUMEDA"
+          },
+          {
+                "id": "1516",
+                "name": "HUGGIES TOALLITA HUMEDA PACK PORTA TOALLITAS"
+          },
+          {
+                "id": "465",
+                "name": "HUGGIES ULTRA CONFORT E/1"
+          },
+          {
+                "id": "460",
+                "name": "HUGGIES ULTRA CONFORT E/2"
+          },
+          {
+                "id": "461",
+                "name": "HUGGIES ULTRA CONFORT E/3 C40"
+          },
+          {
+                "id": "462",
+                "name": "HUGGIES ULTRA CONFORT E/4 C40"
+          },
+          {
+                "id": "463",
+                "name": "HUGGIES ULTRA CONFORT E/5"
+          },
+          {
+                "id": "464",
+                "name": "HUGGIES ULTRA CONFORT E/6"
+          },
+          {
+                "id": "1258",
+                "name": "HUGGIES ULTRA CONFORT E/6 C/75"
+          },
+          {
+                "id": "208",
+                "name": "HUGGIES ULTRA CONFORT E/7"
+          },
+          {
+                "id": "1493",
+                "name": "INS. BAYGON CASA Y JARDIN 380 ML"
+          },
+          {
+                "id": "971",
+                "name": "INS. BAYGON LIQUIDO 510  ML"
+          },
+          {
+                "id": "466",
+                "name": "INS. BAYGON VERDE 400 ML"
+          },
+          {
+                "id": "467",
+                "name": "INS. RAID CASA Y JARDIN 400 ML"
+          },
+          {
+                "id": "909",
+                "name": "INS. RAID CASA Y JARDIN PACK 400 + 226 ML"
+          },
+          {
+                "id": "962",
+                "name": "INS. RAID LAMINITAS C/108"
+          },
+          {
+                "id": "902",
+                "name": "INS. RAID LAMINITAS C/16"
+          },
+          {
+                "id": "941",
+                "name": "INS. RAID LAMINITAS REPUESTO C/12"
+          },
+          {
+                "id": "883",
+                "name": "INS. RAID MATA BICHOS 400 ML"
+          },
+          {
+                "id": "468",
+                "name": "INS. RAID MAX 400 ML"
+          },
+          {
+                "id": "697",
+                "name": "INS. RAIDOLITOS"
+          },
+          {
+                "id": "1289",
+                "name": "INS. VAPE CASA Y JARDIN 600 ML"
+          },
+          {
+                "id": "998",
+                "name": "INS. VAPE LAMINITAS C/12"
+          },
+          {
+                "id": "484",
+                "name": "INS. VAPE LAMINITAS C/24"
+          },
+          {
+                "id": "1356",
+                "name": "INS. VAPE NARANJA 400 ML"
+          },
+          {
+                "id": "1222",
+                "name": "INS. VAPE RAIDOLITO JUMBO"
+          },
+          {
+                "id": "1032",
+                "name": "JABON 1-2-3 800 G"
+          },
+          {
+                "id": "213",
+                "name": "JABON CAMAY 150 G"
+          },
+          {
+                "id": "582",
+                "name": "JABON ESCUDO"
+          },
+          {
+                "id": "967",
+                "name": "JABON KLEEN BEBE 75 G"
+          },
+          {
+                "id": "555",
+                "name": "JABON LIQUIDO MANILVA 500 ML"
+          },
+          {
+                "id": "402",
+                "name": "JABON LIQUIDO ROSA VENUS 500 ML"
+          },
+          {
+                "id": "327",
+                "name": "JABON MANILVA 200 G"
+          },
+          {
+                "id": "564",
+                "name": "JABON PALMOLIVE BARRA"
+          },
+          {
+                "id": "473",
+                "name": "JABON SALVO 4.5 K"
+          },
+          {
+                "id": "474",
+                "name": "JABON SALVO 500 G"
+          },
+          {
+                "id": "470",
+                "name": "JABON SALVO 900 G"
+          },
+          {
+                "id": "480",
+                "name": "JABON TERSSO NEUTRO 200 G"
+          },
+          {
+                "id": "1316",
+                "name": "JABON VARIEDAD"
+          },
+          {
+                "id": "1219",
+                "name": "JALOMA ACEITE DE ALMENDRAS 60 ML"
+          },
+          {
+                "id": "1221",
+                "name": "JALOMA ACEITE DE ARGAN 60 ML"
+          },
+          {
+                "id": "1220",
+                "name": "JALOMA ACEITE DE BEBE 60 ML"
+          },
+          {
+                "id": "1217",
+                "name": "JALOMA ACEITE DE COCO 60 ML"
+          },
+          {
+                "id": "1436",
+                "name": "JALOMA ACEITE DE OLIVO 120 ML"
+          },
+          {
+                "id": "1151",
+                "name": "JALOMA ACEITE DE OLIVO 60 ML"
+          },
+          {
+                "id": "1215",
+                "name": "JALOMA ACEITE DE RICINO 60 ML"
+          },
+          {
+                "id": "1218",
+                "name": "JALOMA ACETONA 60 ML"
+          },
+          {
+                "id": "610",
+                "name": "JALOMA AGUA DE ROSAS 130 ML"
+          },
+          {
+                "id": "1149",
+                "name": "JALOMA AGUA DE ROSAS 250 ML"
+          },
+          {
+                "id": "1281",
+                "name": "JALOMA AGUA OXIGENADA 112 ML"
+          },
+          {
+                "id": "1088",
+                "name": "JALOMA ALGODON 50 G"
+          },
+          {
+                "id": "1437",
+                "name": "JALOMA ALGODON FACIAL"
+          },
+          {
+                "id": "1231",
+                "name": "JALOMA CARBONATO 100 G"
+          },
+          {
+                "id": "1133",
+                "name": "JALOMA COTONETES C/100"
+          },
+          {
+                "id": "1022",
+                "name": "JALOMA COTONETES C/200"
+          },
+          {
+                "id": "1515",
+                "name": "JALOMA CREMA ALMENDRAS 400 ML"
+          },
+          {
+                "id": "1514",
+                "name": "JALOMA GLICERINA 60 ML"
+          },
+          {
+                "id": "1490",
+                "name": "JALOMA PASADOR"
+          },
+          {
+                "id": "1491",
+                "name": "JALOMA TOALLA HUMEDA C/80"
+          },
+          {
+                "id": "1209",
+                "name": "JALOMA VASELINA BLANCA 60 G"
+          },
+          {
+                "id": "850",
+                "name": "JALOMA VASELINA PARA BEBE 60 G"
+          },
+          {
+                "id": "103",
+                "name": "JOHNSON SHAMPOO 400 ML"
+          },
+          {
+                "id": "1225",
+                "name": "JUGO ARIZONA 570 ML"
+          },
+          {
+                "id": "112",
+                "name": "JUGO BOING 200 ML"
+          },
+          {
+                "id": "1247",
+                "name": "JUGO BOING 250 ML"
+          },
+          {
+                "id": "1246",
+                "name": "JUGO BOING 354 ML"
+          },
+          {
+                "id": "1248",
+                "name": "JUGO BOING 500 ML"
+          },
+          {
+                "id": "1374",
+                "name": "JUGO PAU PAU"
+          },
+          {
+                "id": "493",
+                "name": "JUMEX JUGOSA 437 ML"
+          },
+          {
+                "id": "494",
+                "name": "JUMEX MINIBRIK 237 ML"
+          },
+          {
+                "id": "495",
+                "name": "JUMEX TETRABRIK 960 ML"
+          },
+          {
+                "id": "246",
+                "name": "JUMEX UNICO FRESCO"
+          },
+          {
+                "id": "613",
+                "name": "KEFIR"
+          },
+          {
+                "id": "1443",
+                "name": "KELLOGG S SPECIAL K"
+          },
+          {
+                "id": "736",
+                "name": "KELLOGG'S CHOCO KRISPIES 1.1 K"
+          },
+          {
+                "id": "1531",
+                "name": "KELLOGG'S CHOCO KRISPIS 290 G"
+          },
+          {
+                "id": "498",
+                "name": "KELLOGG'S CHOCO KRISPIS 540 G"
+          },
+          {
+                "id": "1530",
+                "name": "KELLOGG'S CORNFLAKES 150 G"
+          },
+          {
+                "id": "1325",
+                "name": "KELLOGG'S CORNFLAKES 370 G"
+          },
+          {
+                "id": "1532",
+                "name": "KELLOGG'S FROOT LOOPS 180 G"
+          },
+          {
+                "id": "502",
+                "name": "KELLOGG'S FROOT LOOPS 380 GR"
+          },
+          {
+                "id": "1535",
+                "name": "KELLOGG'S ZUCARITAS 300 G"
+          },
+          {
+                "id": "1533",
+                "name": "KELLOGG'S ZUCARITAS 600 G"
+          },
+          {
+                "id": "1534",
+                "name": "KELLOGG'S ZUCARITAS BOLSA 125 G"
+          },
+          {
+                "id": "360",
+                "name": "KELLOGS CORN POPS 450 G"
+          },
+          {
+                "id": "124",
+                "name": "KERASHINE SILICA 110 ML"
+          },
+          {
+                "id": "819",
+                "name": "KERMATO 245 ML"
+          },
+          {
+                "id": "857",
+                "name": "KERMATO 413 ML"
+          },
+          {
+                "id": "1458",
+                "name": "KINDER BUENO"
+          },
+          {
+                "id": "905",
+                "name": "KINDER BUENO MINI"
+          },
+          {
+                "id": "1120",
+                "name": "KINDER DELICE 39 G"
+          },
+          {
+                "id": "1335",
+                "name": "KINDER SORPRESA"
+          },
+          {
+                "id": "320",
+                "name": "KIRKLAND ACEITE EN AEROSOL"
+          },
+          {
+                "id": "196",
+                "name": "KIRKLAND CAFE LATA"
+          },
+          {
+                "id": "1009",
+                "name": "KIRKLAND CAJA DE AGUA 500 ML"
+          },
+          {
+                "id": "1115",
+                "name": "KIRKLAND CHEESE CAKE"
+          },
+          {
+                "id": "925",
+                "name": "KIRKLAND GALLETA DE CHOCOLATE"
+          },
+          {
+                "id": "922",
+                "name": "KIRKLAND HIGIENICO C/6"
+          },
+          {
+                "id": "760",
+                "name": "KIRKLAND HOJAS SUAVIZANTES"
+          },
+          {
+                "id": "843",
+                "name": "KIRKLAND JABON PARA PLATOS"
+          },
+          {
+                "id": "869",
+                "name": "KIRKLAND MICRO FIBRA"
+          },
+          {
+                "id": "1432",
+                "name": "KIRKLAND MUFFINS"
+          },
+          {
+                "id": "1116",
+                "name": "KIRKLAND PASTEL CHOCOFLAN-PAYLIMON"
+          },
+          {
+                "id": "917",
+                "name": "KIRKLAND PASTEL CHOCOLATE MATILDA"
+          },
+          {
+                "id": "920",
+                "name": "KIRKLAND PASTEL DE ZANAHORIA"
+          },
+          {
+                "id": "325",
+                "name": "KIRKLAND PERLAS 1.3 K"
+          },
+          {
+                "id": "747",
+                "name": "KIRKLAND SERVILLETA"
+          },
+          {
+                "id": "754",
+                "name": "KIRKLAND SERVITOALLA"
+          },
+          {
+                "id": "928",
+                "name": "KIRKLAND TOALLITAS BEBE"
+          },
+          {
+                "id": "1337",
+                "name": "KIT KAT 41.5 G"
+          },
+          {
+                "id": "330",
+                "name": "KLEENEX PAÑUELOS C/180"
+          },
+          {
+                "id": "164",
+                "name": "KLEENEX PAÑUELOS C/60"
+          },
+          {
+                "id": "1165",
+                "name": "KNOR MI ARROZ"
+          },
+          {
+                "id": "1479",
+                "name": "KNORR SUIZA 1 K"
+          },
+          {
+                "id": "138",
+                "name": "KNORR SUIZA 1.5 K"
+          },
+          {
+                "id": "1469",
+                "name": "KNORR SUIZA 100 G"
+          },
+          {
+                "id": "139",
+                "name": "KNORR SUIZA 3.5 K"
+          },
+          {
+                "id": "1445",
+                "name": "KNORR SUIZA 330G"
+          },
+          {
+                "id": "1444",
+                "name": "KNORR SUIZA 750G"
+          },
+          {
+                "id": "510",
+                "name": "KNORR SUIZA 8 CUBOS"
+          },
+          {
+                "id": "1536",
+                "name": "KNORR SUIZA GRANULADO 88 G"
+          },
+          {
+                "id": "895",
+                "name": "KNORR SUIZA TIRA C/50"
+          },
+          {
+                "id": "518",
+                "name": "KNORR TOMATE 8 CUBOS"
+          },
+          {
+                "id": "898",
+                "name": "KNORR TOMATE TIRA C/31"
+          },
+          {
+                "id": "380",
+                "name": "KOLA LOKA"
+          },
+          {
+                "id": "1361",
+                "name": "KOTEX TAMPONES C/12"
+          },
+          {
+                "id": "731",
+                "name": "KRAFT QUESO PARMESANO 453 G"
+          },
+          {
+                "id": "520",
+                "name": "LA COSTEÑA CHICHAROS 220 G"
+          },
+          {
+                "id": "521",
+                "name": "LA COSTEÑA CHICHAROS 420 G"
+          },
+          {
+                "id": "522",
+                "name": "LA COSTEÑA CHIPOTLE 105 G"
+          },
+          {
+                "id": "523",
+                "name": "LA COSTEÑA CHIPOTLE 220 G"
+          },
+          {
+                "id": "541",
+                "name": "LA COSTEÑA CHIPOTLE 380 G"
+          },
+          {
+                "id": "525",
+                "name": "LA COSTEÑA ELOTES 220 G"
+          },
+          {
+                "id": "526",
+                "name": "LA COSTEÑA ELOTES 400 G"
+          },
+          {
+                "id": "527",
+                "name": "LA COSTEÑA ENSALADA 220 G"
+          },
+          {
+                "id": "528",
+                "name": "LA COSTEÑA ENSALADA 410 G"
+          },
+          {
+                "id": "529",
+                "name": "LA COSTEÑA ENTEROS 220 G"
+          },
+          {
+                "id": "530",
+                "name": "LA COSTEÑA ENTEROS 3.75 K"
+          },
+          {
+                "id": "531",
+                "name": "LA COSTEÑA ENTEROS 380 G"
+          },
+          {
+                "id": "532",
+                "name": "LA COSTEÑA ENTEROS 780 G"
+          },
+          {
+                "id": "980",
+                "name": "LA COSTEÑA NACHOS 2.9 K"
+          },
+          {
+                "id": "750",
+                "name": "LA COSTEÑA RAJAS 2.9 K"
+          },
+          {
+                "id": "534",
+                "name": "LA COSTEÑA RAJAS 220 G"
+          },
+          {
+                "id": "535",
+                "name": "LA COSTEÑA RAJAS 380 G"
+          },
+          {
+                "id": "536",
+                "name": "LA COSTEÑA RAJAS 780 G"
+          },
+          {
+                "id": "822",
+                "name": "LA COSTEÑA SERRANOS 220 G"
+          },
+          {
+                "id": "537",
+                "name": "LA COSTEÑA ZANAHORIAS 220 G"
+          },
+          {
+                "id": "1509",
+                "name": "LADY SPEED STICK 30 ML"
+          },
+          {
+                "id": "1145",
+                "name": "LADY SPEED STICK AEROSOL"
+          },
+          {
+                "id": "1013",
+                "name": "LADY SPEED STICK BARRA"
+          },
+          {
+                "id": "1492",
+                "name": "LALA 100 1 L"
+          },
+          {
+                "id": "751",
+                "name": "LECHE DE ALMENDRAS SILK 946 ML"
+          },
+          {
+                "id": "934",
+                "name": "LECHE LALA 1 L"
+          },
+          {
+                "id": "542",
+                "name": "LECHERA 375 G"
+          },
+          {
+                "id": "732",
+                "name": "LECHERA 430 G TETRA PACK"
+          },
+          {
+                "id": "589",
+                "name": "LECHERA BOLSA 209 G"
+          },
+          {
+                "id": "544",
+                "name": "LECHERA SIRVE FACIL 335 G"
+          },
+          {
+                "id": "1329",
+                "name": "LENTEJA 500 G"
+          },
+          {
+                "id": "239",
+                "name": "LIMPIA VIDRIOS MR MUSCULO"
+          },
+          {
+                "id": "547",
+                "name": "LIRIO BAÑO 150 G"
+          },
+          {
+                "id": "1498",
+                "name": "LIRIO BAÑO 200 G"
+          },
+          {
+                "id": "120",
+                "name": "LIRIO BATH & SPA 400 ML"
+          },
+          {
+                "id": "121",
+                "name": "LIRIO CLEAN & PURE 1 L"
+          },
+          {
+                "id": "122",
+                "name": "LIRIO CLEAN & PURE 500 ML"
+          },
+          {
+                "id": "469",
+                "name": "LIRIO LAVANDERIA 400 G"
+          },
+          {
+                "id": "549",
+                "name": "LISTERINE  250 ML"
+          },
+          {
+                "id": "550",
+                "name": "LISTERINE 180 ML"
+          },
+          {
+                "id": "551",
+                "name": "LISTERINE 500 ML"
+          },
+          {
+                "id": "508",
+                "name": "LISTERINE COOL MINT SIN ALCOHOL 500 ML"
+          },
+          {
+                "id": "185",
+                "name": "LISTERINE COOL MINT SIN CALCOHOL 250 ML"
+          },
+          {
+                "id": "1355",
+                "name": "LISTERINE CUIDADO TOTAL 250 ML"
+          },
+          {
+                "id": "1378",
+                "name": "LISTERINE CUIDADO TOTAL 500 ML"
+          },
+          {
+                "id": "186",
+                "name": "LISTERINE PRO ENCIAS 250 ML"
+          },
+          {
+                "id": "968",
+                "name": "LISTERINE ULTRA CLEAN 500 ML"
+          },
+          {
+                "id": "1354",
+                "name": "LISTERINE WHITENING  236 ML"
+          },
+          {
+                "id": "553",
+                "name": "LUBRIDERM HUMECTACION 400 G"
+          },
+          {
+                "id": "1230",
+                "name": "LUBRIDERM MEN 3 EN 1 400 ML"
+          },
+          {
+                "id": "1184",
+                "name": "LUBRIDERM PROTECCION 400 ML"
+          },
+          {
+                "id": "1183",
+                "name": "LUBRIDERM REPARACION 400 G"
+          },
+          {
+                "id": "1191",
+                "name": "LUCKY GUMMYS 1 K"
+          },
+          {
+                "id": "1190",
+                "name": "LUCKY GUMMYS 96 G"
+          },
+          {
+                "id": "1511",
+                "name": "LYSOL DESINFECTANTE 354 G"
+          },
+          {
+                "id": "834",
+                "name": "LYSOL DESINFECTANTE 475 G"
+          },
+          {
+                "id": "1108",
+                "name": "M.C. TE BUENAS NOCHES"
+          },
+          {
+                "id": "944",
+                "name": "M.C. TE CHAI"
+          },
+          {
+                "id": "1057",
+                "name": "M.C. TE DE 7 AZAHARES"
+          },
+          {
+                "id": "1085",
+                "name": "M.C. TE DE CANELA A LA MANZANA"
+          },
+          {
+                "id": "865",
+                "name": "M.C. TE DE ENERGIA"
+          },
+          {
+                "id": "2002",
+                "name": "M.C. TE DE HIERBABUENA"
+          },
+          {
+                "id": "641",
+                "name": "M.C. TE DE JAMAICA"
+          },
+          {
+                "id": "989",
+                "name": "M.C. TE DE LIMON C/25"
+          },
+          {
+                "id": "1306",
+                "name": "M.C. TE DE LIMON C/50"
+          },
+          {
+                "id": "1348",
+                "name": "M.C. TE DE MANZANILLA C/100"
+          },
+          {
+                "id": "988",
+                "name": "M.C. TE DE MANZANILLA C/25"
+          },
+          {
+                "id": "1090",
+                "name": "M.C. TE DE MANZANILLA C/50"
+          },
+          {
+                "id": "1173",
+                "name": "M.C. TE DE TILA"
+          },
+          {
+                "id": "1178",
+                "name": "M.C. TE GORDOLOBO MIEL"
+          },
+          {
+                "id": "439",
+                "name": "M.C. TE JENGIBRE - LIMON"
+          },
+          {
+                "id": "1801",
+                "name": "M.C. TE NEGRO"
+          },
+          {
+                "id": "1172",
+                "name": "M.C. TE VERDE"
+          },
+          {
+                "id": "1077",
+                "name": "MAGGI SOYA 140 ML"
+          },
+          {
+                "id": "2017",
+                "name": "MAIZ POZOLERO EL MEXICANO"
+          },
+          {
+                "id": "485",
+                "name": "MAIZ POZOLERO EL MEXICANO CH"
+          },
+          {
+                "id": "557",
+                "name": "MAIZENA NATURAL 160 G"
+          },
+          {
+                "id": "558",
+                "name": "MAIZENA NATURAL 95 G"
+          },
+          {
+                "id": "560",
+                "name": "MAIZENA SABOR 95 G"
+          },
+          {
+                "id": "698",
+                "name": "MALTEADAS 180 ML"
+          },
+          {
+                "id": "832",
+                "name": "MANTECA INCA 1 K"
+          },
+          {
+                "id": "302",
+                "name": "MARIBEL AVENA INTEGRAL 400 G"
+          },
+          {
+                "id": "855",
+                "name": "MARINELA BARRITAS 75 G"
+          },
+          {
+                "id": "513",
+                "name": "MARINELA CANELITAS"
+          },
+          {
+                "id": "512",
+                "name": "MARINELA CHOCO ROLES"
+          },
+          {
+                "id": "514",
+                "name": "MARINELA GANSITO"
+          },
+          {
+                "id": "511",
+                "name": "MARINELA PINGUINOS"
+          },
+          {
+                "id": "515",
+                "name": "MARINELA PRINCIPE"
+          },
+          {
+                "id": "951",
+                "name": "MARINELA SUBMARINO"
+          },
+          {
+                "id": "509",
+                "name": "MARINELA TRIKI TRAKES"
+          },
+          {
+                "id": "269",
+                "name": "MARLI SERVILLETA C/450"
+          },
+          {
+                "id": "193",
+                "name": "MARUCHAN CAMARON 64 G"
+          },
+          {
+                "id": "194",
+                "name": "MARUCHAN CAMARON HABANERO 64 G"
+          },
+          {
+                "id": "184",
+                "name": "MARUCHAN CAMARON LIMON 64 G"
+          },
+          {
+                "id": "182",
+                "name": "MARUCHAN CAMARON PIQUIN 64 G"
+          },
+          {
+                "id": "561",
+                "name": "MARUCHAN POLLO 64 G"
+          },
+          {
+                "id": "364",
+                "name": "MARUCHAN RAMEN"
+          },
+          {
+                "id": "183",
+                "name": "MARUCHAN RES 64 G"
+          },
+          {
+                "id": "724",
+                "name": "MAS COLOR OFERTA 830 ML"
+          },
+          {
+                "id": "562",
+                "name": "MASECA 1 K"
+          },
+          {
+                "id": "1352",
+                "name": "MASECA ANTOJITOS 1 K"
+          },
+          {
+                "id": "1351",
+                "name": "MASECA AZUL 1 K"
+          },
+          {
+                "id": "1265",
+                "name": "MAXI HOGAR DESENGRASANTE 1 L"
+          },
+          {
+                "id": "2013",
+                "name": "MAXI HOGAR LIMPIA VIDRIOS 1 L"
+          },
+          {
+                "id": "253",
+                "name": "MAXIMA COCTEL DE FRUTAS 820 G"
+          },
+          {
+                "id": "997",
+                "name": "MAY. M.C. ADEREZO #128 3.8 K"
+          },
+          {
+                "id": "1272",
+                "name": "MAY. M.C. ADEREZO #64 1.88 K"
+          },
+          {
+                "id": "1273",
+                "name": "MAY. M.C. ADEREZO #8 210 G"
+          },
+          {
+                "id": "566",
+                "name": "MAY. M.C. LIGT # 16 390 G"
+          },
+          {
+                "id": "814",
+                "name": "MAY. M.C. LIMON #128 2.8 K"
+          },
+          {
+                "id": "567",
+                "name": "MAY. M.C. LIMON #16 390 G"
+          },
+          {
+                "id": "568",
+                "name": "MAY. M.C. LIMON #32 725 G"
+          },
+          {
+                "id": "569",
+                "name": "MAY. M.C. LIMON #64 1.4 K"
+          },
+          {
+                "id": "570",
+                "name": "MAY. M.C. LIMON #8 190 G"
+          },
+          {
+                "id": "1400",
+                "name": "MAY. M.C. LIMON 3.4 K"
+          },
+          {
+                "id": "571",
+                "name": "MEDIA CREMA NESTLE 225 G"
+          },
+          {
+                "id": "448",
+                "name": "MEMBER'S MARK HIG. C/ 32"
+          },
+          {
+                "id": "435",
+                "name": "MEMBER`S MARK AGUA 1 L"
+          },
+          {
+                "id": "605",
+                "name": "MEMBER`S MARK BACTERICIDA 1 L"
+          },
+          {
+                "id": "1405",
+                "name": "MEMBER`S MARK CAPUCHINO 1.8 K"
+          },
+          {
+                "id": "1418",
+                "name": "MEMBER`S MARK CREMA DE AVELLANA 1 K"
+          },
+          {
+                "id": "1404",
+                "name": "MEMBER`S MARK JABON LIQUIDO"
+          },
+          {
+                "id": "1431",
+                "name": "MEMBER`S MARK SUSTITUTO 1 K"
+          },
+          {
+                "id": "975",
+                "name": "MEMBER´S MARK CAFE COLOMBIANO 300 G"
+          },
+          {
+                "id": "937",
+                "name": "MEMBER´S MARK TOALLITAS HUMEDA"
+          },
+          {
+                "id": "388",
+                "name": "MENEN JABON 90 G"
+          },
+          {
+                "id": "913",
+                "name": "MENEN SHAMPOO 700 ML"
+          },
+          {
+                "id": "1523",
+                "name": "MERMELADA DEL MONTE 270 G"
+          },
+          {
+                "id": "1524",
+                "name": "MERMELADA DEL MONTE 470 G"
+          },
+          {
+                "id": "714",
+                "name": "MERMELADA M.C. 270 G"
+          },
+          {
+                "id": "713",
+                "name": "MERMELADA M.C. 450 G"
+          },
+          {
+                "id": "1321",
+                "name": "MICRODIN 15 ML"
+          },
+          {
+                "id": "576",
+                "name": "MIEL KARO MAPLE 255 G"
+          },
+          {
+                "id": "119",
+                "name": "MODERNA LASAGNA"
+          },
+          {
+                "id": "579",
+                "name": "MOLE DOÑA MARIA ROJO 245 G"
+          },
+          {
+                "id": "581",
+                "name": "MOSTAZA FRENCH'S 226 G"
+          },
+          {
+                "id": "825",
+                "name": "MOSTAZA M.C. 210 G"
+          },
+          {
+                "id": "583",
+                "name": "NAN 1 1.2 K"
+          },
+          {
+                "id": "585",
+                "name": "NAN 1 720 G"
+          },
+          {
+                "id": "586",
+                "name": "NAN 2 1.2 K"
+          },
+          {
+                "id": "588",
+                "name": "NAN 2 720 G"
+          },
+          {
+                "id": "590",
+                "name": "NAN 3 1.6 K"
+          },
+          {
+                "id": "1304",
+                "name": "NAN 3 1.6 K PACK"
+          },
+          {
+                "id": "1360",
+                "name": "NATURE'S HEART TE"
+          },
+          {
+                "id": "594",
+                "name": "NATURELLA"
+          },
+          {
+                "id": "932",
+                "name": "NATURELLA NOCTURNA"
+          },
+          {
+                "id": "362",
+                "name": "NESCAFE BLACK 170 G"
+          },
+          {
+                "id": "595",
+                "name": "NESCAFE CAPUCHINO EXIBIDOR"
+          },
+          {
+                "id": "597",
+                "name": "NESCAFE CLASICO 120 G"
+          },
+          {
+                "id": "1507",
+                "name": "NESCAFE CLASICO 200 G PACK ICE"
+          },
+          {
+                "id": "1193",
+                "name": "NESCAFE CLASICO 225 G"
+          },
+          {
+                "id": "600",
+                "name": "NESCAFE CLASICO 350 G"
+          },
+          {
+                "id": "601",
+                "name": "NESCAFE CLASICO 42 G"
+          },
+          {
+                "id": "599",
+                "name": "NESCAFE CLASICO EXIBIDOR"
+          },
+          {
+                "id": "1512",
+                "name": "NESCAFE CLASICO LATA 1 K"
+          },
+          {
+                "id": "324",
+                "name": "NESCAFE CLASICO LATA 1.1 K"
+          },
+          {
+                "id": "603",
+                "name": "NESCAFE DECAF 120 G"
+          },
+          {
+                "id": "604",
+                "name": "NESCAFE DECAF 170 G"
+          },
+          {
+                "id": "345",
+                "name": "NESCAFE DECAF 300 G"
+          },
+          {
+                "id": "606",
+                "name": "NESCAFE DECAF 40 G"
+          },
+          {
+                "id": "1522",
+                "name": "NESCAFE DOLCA 170 G"
+          },
+          {
+                "id": "1518",
+                "name": "NESCAFE DOLCA 46 G"
+          },
+          {
+                "id": "609",
+                "name": "NESCAFE DOLCA 80 G"
+          },
+          {
+                "id": "113",
+                "name": "NESCAFE ESTILO DE OLLA 260 G"
+          },
+          {
+                "id": "1519",
+                "name": "NESCAFE ESTILO DE OLLA 46 G"
+          },
+          {
+                "id": "894",
+                "name": "NESCAFE ESTILO DE OLLA 85 G"
+          },
+          {
+                "id": "375",
+                "name": "NESCAFE ICE 170 G"
+          },
+          {
+                "id": "1086",
+                "name": "NESCAFE RESERVA 180 G"
+          },
+          {
+                "id": "748",
+                "name": "NESCAFE SABOR CHOCOLATE 120 G"
+          },
+          {
+                "id": "322",
+                "name": "NESCAFE SABOR VAINILLA 120 G"
+          },
+          {
+                "id": "817",
+                "name": "NESCAFE TASTER´S CHOICE COLOMBIANO 100 G"
+          },
+          {
+                "id": "614",
+                "name": "NESQUIK 400 G LATA"
+          },
+          {
+                "id": "346",
+                "name": "NESQUIK CEREAL 620 G"
+          },
+          {
+                "id": "503",
+                "name": "NESQUIK CEREAL 750 G"
+          },
+          {
+                "id": "1276",
+                "name": "NESQUIK CHOCO MILK 357 G"
+          },
+          {
+                "id": "1390",
+                "name": "NESTUM 270 G"
+          },
+          {
+                "id": "693",
+                "name": "NEW DERMA ACEITE BEBE 130 ML"
+          },
+          {
+                "id": "1045",
+                "name": "NIDAL 1 900 G"
+          },
+          {
+                "id": "1000",
+                "name": "NIDAL 2 900 G"
+          },
+          {
+                "id": "914",
+                "name": "NIDO FORTI CRECE 2.346 K"
+          },
+          {
+                "id": "619",
+                "name": "NIDO KINDER 1.4 K"
+          },
+          {
+                "id": "617",
+                "name": "NIDO KINDER 2.5 K"
+          },
+          {
+                "id": "616",
+                "name": "NIDO KINDER 800 G"
+          },
+          {
+                "id": "587",
+                "name": "NIDO KINDER DESLACTOSADA 1.5 K"
+          },
+          {
+                "id": "1205",
+                "name": "NIDO NUTRI RINDES 460 G"
+          },
+          {
+                "id": "965",
+                "name": "NIDO NUTRI RINDES LATA"
+          },
+          {
+                "id": "879",
+                "name": "NIDO PREESCOLAR 2+ 1.5 K"
+          },
+          {
+                "id": "1185",
+                "name": "NIVEA AEREOSOL 150 ML"
+          },
+          {
+                "id": "626",
+                "name": "NIVEA BARRA 50 G"
+          },
+          {
+                "id": "621",
+                "name": "NIVEA CREMA LIQUIDA 1 L"
+          },
+          {
+                "id": "789",
+                "name": "NIVEA CREMA LIQUIDA 100 ML"
+          },
+          {
+                "id": "624",
+                "name": "NIVEA CREMA LIQUIDA 400 ML"
+          },
+          {
+                "id": "1296",
+                "name": "NIVEA CREMA PARA AFEITAR 200 ML"
+          },
+          {
+                "id": "162",
+                "name": "NIVEA CREME 200 CML"
+          },
+          {
+                "id": "622",
+                "name": "NIVEA CREME 500 G"
+          },
+          {
+                "id": "625",
+                "name": "NIVEA ROLL-ON 50 ML"
+          },
+          {
+                "id": "999",
+                "name": "NUEZ 125G"
+          },
+          {
+                "id": "1169",
+                "name": "NUGGET 60 ML"
+          },
+          {
+                "id": "929",
+                "name": "NUTELLA 200 G"
+          },
+          {
+                "id": "629",
+                "name": "NUTELLA 350 G"
+          },
+          {
+                "id": "630",
+                "name": "NUTELLA 650 G"
+          },
+          {
+                "id": "1293",
+                "name": "NUTRIBELA TRATAMIENTO"
+          },
+          {
+                "id": "1373",
+                "name": "NUVEL CREMA 750 ML"
+          },
+          {
+                "id": "1376",
+                "name": "OBAO AEROSOL 150 ML"
+          },
+          {
+                "id": "631",
+                "name": "OBAO ROLL-ON 65 G"
+          },
+          {
+                "id": "632",
+                "name": "OLD SPICE AEROSOL 150 ML"
+          },
+          {
+                "id": "633",
+                "name": "OLD SPICE BARRA 50 G"
+          },
+          {
+                "id": "167",
+                "name": "OLD SPICE BARRA JUMBO"
+          },
+          {
+                "id": "2018",
+                "name": "ORAL-B ENJUAGUE BUCAL 250 ML"
+          },
+          {
+                "id": "1103",
+                "name": "ORAL-B ENJUAGUE BUCAL 473 ML"
+          },
+          {
+                "id": "1410",
+                "name": "ORAL-B HILO 50 M"
+          },
+          {
+                "id": "1412",
+                "name": "ORAL-B HILO DENTAL 25 M C/2"
+          },
+          {
+                "id": "721",
+                "name": "PALETA JUMBO CEREZA C/50"
+          },
+          {
+                "id": "1428",
+                "name": "PALILLOS"
+          },
+          {
+                "id": "366",
+                "name": "PALMOLIVE 700 ML"
+          },
+          {
+                "id": "833",
+                "name": "PALMOLIVE OPTIMS 1 L"
+          },
+          {
+                "id": "938",
+                "name": "PALOMITAS ACTO"
+          },
+          {
+                "id": "1346",
+                "name": "PALOMITAS ACTO SABORES"
+          },
+          {
+                "id": "638",
+                "name": "PANTENE 1 L"
+          },
+          {
+                "id": "896",
+                "name": "PANTENE 400 ML"
+          },
+          {
+                "id": "1409",
+                "name": "PANTENE 700 ML"
+          },
+          {
+                "id": "1391",
+                "name": "PANTENE ACONDICIONADOR 400 ML"
+          },
+          {
+                "id": "1408",
+                "name": "PANTENE AMPOLLETA 15 ML"
+          },
+          {
+                "id": "127",
+                "name": "PANTENE CREMA P/PEINAR 160 ML"
+          },
+          {
+                "id": "702",
+                "name": "PANTENE CREMA PARA PEINAR"
+          },
+          {
+                "id": "1421",
+                "name": "PANTENE TRATAMIENTO 300 ML"
+          },
+          {
+                "id": "620",
+                "name": "PAÑAL ABSORSEC ETAPA 7"
+          },
+          {
+                "id": "1322",
+                "name": "PAÑAL BEBIN E/2"
+          },
+          {
+                "id": "853",
+                "name": "PAÑAL BEBIN E/3"
+          },
+          {
+                "id": "854",
+                "name": "PAÑAL BEBIN E/4"
+          },
+          {
+                "id": "1323",
+                "name": "PAÑAL BEBIN E/5"
+          },
+          {
+                "id": "1324",
+                "name": "PAÑAL BEBIN E/6"
+          },
+          {
+                "id": "643",
+                "name": "PAÑAL CHICOLASTIC ET 3"
+          },
+          {
+                "id": "1362",
+                "name": "PAÑAL COMODISEC 4 C/30"
+          },
+          {
+                "id": "1363",
+                "name": "PAÑAL COMODISEC 5 C/30"
+          },
+          {
+                "id": "647",
+                "name": "PAÑAL KLEEN BEBE ABSORSEC ETAPA 2"
+          },
+          {
+                "id": "650",
+                "name": "PAÑAL KLEEN BEBE ABSORSEC ETAPA 3"
+          },
+          {
+                "id": "648",
+                "name": "PAÑAL KLEEN BEBE ABSORSEC ETAPA 4"
+          },
+          {
+                "id": "649",
+                "name": "PAÑAL KLEEN BEBE ABSORSEC ETAPA 5"
+          },
+          {
+                "id": "651",
+                "name": "PAÑAL KLEEN BEBE ABSORSEC ETAPA 6"
+          },
+          {
+                "id": "1347",
+                "name": "PAÑAL SOFT TAILS"
+          },
+          {
+                "id": "658",
+                "name": "PAÑAL SUAVELASTIC MAX 1 C/40"
+          },
+          {
+                "id": "653",
+                "name": "PAÑAL SUAVELASTIC MAX 2 C/40"
+          },
+          {
+                "id": "657",
+                "name": "PAÑAL SUAVELASTIC MAX 3 C/40"
+          },
+          {
+                "id": "655",
+                "name": "PAÑAL SUAVELASTIC MAX 4 C/40"
+          },
+          {
+                "id": "656",
+                "name": "PAÑAL SUAVELASTIC MAX 5 C/40"
+          },
+          {
+                "id": "654",
+                "name": "PAÑAL SUAVELASTIC MAX 6 C/40"
+          },
+          {
+                "id": "1237",
+                "name": "PAÑAL SUAVELASTIC MAX 7 C/40"
+          },
+          {
+                "id": "1496",
+                "name": "PAÑAL TINY EXTRA EXTRA GRANDE C/40"
+          },
+          {
+                "id": "1497",
+                "name": "PAÑAL TINY EXTRA GRANDE C/40"
+          },
+          {
+                "id": "489",
+                "name": "PAÑAL TINY GRANDE C/40"
+          },
+          {
+                "id": "615",
+                "name": "PAÑAL TINY MEDIANO C/40"
+          },
+          {
+                "id": "1271",
+                "name": "PAÑAL TIPS ETAPA 1 C/40"
+          },
+          {
+                "id": "659",
+                "name": "PAÑAL TIPS ETAPA 2 C/40"
+          },
+          {
+                "id": "660",
+                "name": "PAÑAL TIPS ETAPA 3 C/40"
+          },
+          {
+                "id": "662",
+                "name": "PAÑAL TIPS ETAPA 4 C/40"
+          },
+          {
+                "id": "661",
+                "name": "PAÑAL TIPS ETAPA 5 C/40"
+          },
+          {
+                "id": "663",
+                "name": "PAÑAL TIPS ETAPA 6 C/40"
+          },
+          {
+                "id": "664",
+                "name": "PAÑAL TIPS ETAPA 7 C/40"
+          },
+          {
+                "id": "1450",
+                "name": "PASTA MODERNA 200 G"
+          },
+          {
+                "id": "645",
+                "name": "PASTA MODERNA 450 G"
+          },
+          {
+                "id": "507",
+                "name": "PASTILLA BAÑO WIESE"
+          },
+          {
+                "id": "1478",
+                "name": "PASTILLA FLASH"
+          },
+          {
+                "id": "852",
+                "name": "PATO PASTILLA C/4"
+          },
+          {
+                "id": "933",
+                "name": "PEDIASURE"
+          },
+          {
+                "id": "1501",
+                "name": "PELON PELO RICO C/12"
+          },
+          {
+                "id": "889",
+                "name": "PERT 650 ML"
+          },
+          {
+                "id": "1506",
+                "name": "PICA FRESA C/100"
+          },
+          {
+                "id": "1318",
+                "name": "PILA DURACELL"
+          },
+          {
+                "id": "1460",
+                "name": "PILONCILLO 4 PZ"
+          },
+          {
+                "id": "667",
+                "name": "PIMIENTA NEGRA MOLIDA 64 G"
+          },
+          {
+                "id": "816",
+                "name": "PINOL 1.8 L"
+          },
+          {
+                "id": "669",
+                "name": "PINOL 3.8 L"
+          },
+          {
+                "id": "670",
+                "name": "PINOL 5 L"
+          },
+          {
+                "id": "672",
+                "name": "PINOL 828 ML"
+          },
+          {
+                "id": "673",
+                "name": "PINOL 9 L"
+          },
+          {
+                "id": "976",
+                "name": "PINOL REPELENTE 828 ML"
+          },
+          {
+                "id": "675",
+                "name": "PINOL TRAPEADO DIARIO 828 ML"
+          },
+          {
+                "id": "695",
+                "name": "PINOL TRAPEADO DIARIO 9 L"
+          },
+          {
+                "id": "634",
+                "name": "PINOL TRAPEADO DIARIO LAVANDA 3.78 L"
+          },
+          {
+                "id": "676",
+                "name": "PIÑA 800 G"
+          },
+          {
+                "id": "677",
+                "name": "PLATO CHAROLA REYMA CHICO NO.066"
+          },
+          {
+                "id": "678",
+                "name": "PLATO CHAROLA REYMA GRANDE NO.855"
+          },
+          {
+                "id": "679",
+                "name": "PLATO DIVISION 9D"
+          },
+          {
+                "id": "1474",
+                "name": "PLATO POZOLERO PH 6"
+          },
+          {
+                "id": "1189",
+                "name": "PLATO POZOLERO PH8"
+          },
+          {
+                "id": "1459",
+                "name": "PLATO TERMICO PASTELERO"
+          },
+          {
+                "id": "1270",
+                "name": "PLEDGE MADERAS 378 ML"
+          },
+          {
+                "id": "191",
+                "name": "POET 9 L"
+          },
+          {
+                "id": "1499",
+                "name": "POETT 2 L"
+          },
+          {
+                "id": "680",
+                "name": "POETT 900 ML"
+          },
+          {
+                "id": "682",
+                "name": "POMADA CAMPANA 35 G"
+          },
+          {
+                "id": "683",
+                "name": "POMADA CAMPANA 75 G"
+          },
+          {
+                "id": "685",
+                "name": "POND'S \"S\" 400 G"
+          },
+          {
+                "id": "990",
+                "name": "POND´S CLARANT B3 400 G"
+          },
+          {
+                "id": "801",
+                "name": "POPOTE 100 G"
+          },
+          {
+                "id": "001",
+                "name": "PRODUCTO PRUEBA SAUL"
+          },
+          {
+                "id": "740",
+                "name": "PRONTO GELATINA"
+          },
+          {
+                "id": "1358",
+                "name": "PRONTO HOT CAKES 350 G"
+          },
+          {
+                "id": "1311",
+                "name": "PRONTO HOT CAKES 500 G"
+          },
+          {
+                "id": "575",
+                "name": "PRONTO HOT CAKES INSTANTANEO 180 G"
+          },
+          {
+                "id": "1250",
+                "name": "PRONTO JARABE MAPLE 250 ML"
+          },
+          {
+                "id": "1300",
+                "name": "PRONTO JARABE MAPLE 500 ML"
+          },
+          {
+                "id": "574",
+                "name": "PRONTO LECHE CONDENSADA"
+          },
+          {
+                "id": "687",
+                "name": "PURE DE TOMATE DEL FUERTE 1 K"
+          },
+          {
+                "id": "689",
+                "name": "PURE DE TOMATE DEL FUERTE 210 G"
+          },
+          {
+                "id": "691",
+                "name": "PURE DE TOMATE DEL FUERTE 345 G"
+          },
+          {
+                "id": "1078",
+                "name": "PURE DE TOMATE LA COSTEÑA 1 K"
+          },
+          {
+                "id": "950",
+                "name": "PURE DE TOMATE LA COSTEÑA 210 G"
+          },
+          {
+                "id": "969",
+                "name": "PURE DE TOMATE LA COSTEÑA 210 G"
+          },
+          {
+                "id": "611",
+                "name": "PURO SOL CLORO 1 L"
+          },
+          {
+                "id": "426",
+                "name": "RASTRILLO PRESTOBARBA 2 H"
+          },
+          {
+                "id": "500",
+                "name": "RECOGEDOR PLASTICO"
+          },
+          {
+                "id": "1328",
+                "name": "REXAL 100 G"
+          },
+          {
+                "id": "700",
+                "name": "REXONA AEROSOL 150 ML"
+          },
+          {
+                "id": "117",
+                "name": "REXONA BARRA 45 G"
+          },
+          {
+                "id": "1377",
+                "name": "REXONA CLINICAL 58 G"
+          },
+          {
+                "id": "701",
+                "name": "REXONA ROLL-ON 50 ML"
+          },
+          {
+                "id": "1070",
+                "name": "RICITOS DE ORO 400 ML"
+          },
+          {
+                "id": "1182",
+                "name": "RICITOS DE ORO KIT"
+          },
+          {
+                "id": "703",
+                "name": "ROMA 1 K"
+          },
+          {
+                "id": "818",
+                "name": "ROMA 10 K"
+          },
+          {
+                "id": "704",
+                "name": "ROMA 2 K"
+          },
+          {
+                "id": "705",
+                "name": "ROMA 250 G"
+          },
+          {
+                "id": "706",
+                "name": "ROMA 5 K"
+          },
+          {
+                "id": "707",
+                "name": "ROMA 500 G"
+          },
+          {
+                "id": "708",
+                "name": "ROMA BARRA 400 G"
+          },
+          {
+                "id": "709",
+                "name": "ROMA LIQ. 1L"
+          },
+          {
+                "id": "710",
+                "name": "ROMA LIQ. 3.785 L"
+          },
+          {
+                "id": "504",
+                "name": "ROYAL 100 G"
+          },
+          {
+                "id": "777",
+                "name": "ROYAL 250 G"
+          },
+          {
+                "id": "1291",
+                "name": "SABA AMORE C/8"
+          },
+          {
+                "id": "592",
+                "name": "SABA AMORE NOCTURNA C/8"
+          },
+          {
+                "id": "1081",
+                "name": "SABA BUENAS NOCHES C/24"
+          },
+          {
+                "id": "715",
+                "name": "SABA BUENAS NOCHES C/8"
+          },
+          {
+                "id": "1119",
+                "name": "SABA DIARIO DELICATE C/ 16"
+          },
+          {
+                "id": "1438",
+                "name": "SABA DIARIOS DELICATE C/28"
+          },
+          {
+                "id": "1435",
+                "name": "SABA DIARIOS MULTIESTILOS C/15"
+          },
+          {
+                "id": "716",
+                "name": "SABA INTIMA CLIP C/10"
+          },
+          {
+                "id": "1389",
+                "name": "SABA INTIMA CLIP C/42"
+          },
+          {
+                "id": "1019",
+                "name": "SABA INVISIBLE DELGADA C/10"
+          },
+          {
+                "id": "1277",
+                "name": "SABA INVISIBLE DELGADA C/42"
+          },
+          {
+                "id": "1434",
+                "name": "SABA NATURAL CONFORT C/10"
+          },
+          {
+                "id": "1232",
+                "name": "SABA NOCTURNA ULTRA INVISIBLE C/10"
+          },
+          {
+                "id": "907",
+                "name": "SABA SENSITI-V C/10"
+          },
+          {
+                "id": "874",
+                "name": "SABA TEENS NOCTURNA C/10"
+          },
+          {
+                "id": "904",
+                "name": "SABA TEENS ULTRA DELGADA CON ALAS C/10"
+          },
+          {
+                "id": "864",
+                "name": "SABA ULTRA INVISIBLE C/10"
+          },
+          {
+                "id": "947",
+                "name": "SABA ULTRA INVISIBLE C/14"
+          },
+          {
+                "id": "717",
+                "name": "SABA ULTRA INVISIBLE LARGA C/12"
+          },
+          {
+                "id": "867",
+                "name": "SABA ULTRA INVISIBLE NOCURNA C/22"
+          },
+          {
+                "id": "873",
+                "name": "SABA V-SPORT C/10"
+          },
+          {
+                "id": "1326",
+                "name": "SABRITAS BOLZAZA"
+          },
+          {
+                "id": "719",
+                "name": "SABROSEADOR MC. 125 G"
+          },
+          {
+                "id": "1430",
+                "name": "SAL BAKARA MOLIDA 1 K"
+          },
+          {
+                "id": "271",
+                "name": "SAL ENTERA 1 K"
+          },
+          {
+                "id": "1163",
+                "name": "SAL MOLIDA SALERO 1 K"
+          },
+          {
+                "id": "1162",
+                "name": "SAL MOLIDA SALERO 250 G"
+          },
+          {
+                "id": "281",
+                "name": "SALSA BUFALO 990 G"
+          },
+          {
+                "id": "280",
+                "name": "SALSA BUFALO GOTERO"
+          },
+          {
+                "id": "726",
+                "name": "SALSA EN POLVO TAJIN 142 G"
+          },
+          {
+                "id": "727",
+                "name": "SALSA EN POLVO TAJIN 400 G"
+          },
+          {
+                "id": "728",
+                "name": "SALSA HABANERA LOLTUN 150 G"
+          },
+          {
+                "id": "314",
+                "name": "SALSA HABANERA PURHEPECHA 260 G"
+          },
+          {
+                "id": "1100",
+                "name": "SALSA HUICHOL 190 ML"
+          },
+          {
+                "id": "1526",
+                "name": "SALSA HUICHOL 360 G"
+          },
+          {
+                "id": "1527",
+                "name": "SALSA HUICHOL BOTANERA 1 L"
+          },
+          {
+                "id": "730",
+                "name": "SALSA HUNT'S BBQ 620 G"
+          },
+          {
+                "id": "1449",
+                "name": "SALSA HUNT´S PIZZA 360 G"
+          },
+          {
+                "id": "197",
+                "name": "SALSA HUNTS WINGS 550 G"
+          },
+          {
+                "id": "578",
+                "name": "SALSA INGLESA 1.9 L"
+          },
+          {
+                "id": "519",
+                "name": "SALSA JUGO MAGGI 1.9 L"
+          },
+          {
+                "id": "734",
+                "name": "SALSA JUGO MAGGI 100 ML"
+          },
+          {
+                "id": "1395",
+                "name": "SALSA LA ESPECIAL"
+          },
+          {
+                "id": "472",
+                "name": "SALSA MAGGI PICANTE 100 ML"
+          },
+          {
+                "id": "737",
+                "name": "SALSA PATO AMARILLA 225 ML"
+          },
+          {
+                "id": "1195",
+                "name": "SALSA PREGO 397 G"
+          },
+          {
+                "id": "987",
+                "name": "SALSA PREGO 680 G"
+          },
+          {
+                "id": "984",
+                "name": "SALSA SOYA TOKIO 1 L"
+          },
+          {
+                "id": "247",
+                "name": "SALSA SOYA TOKIO 350 ML"
+          },
+          {
+                "id": "317",
+                "name": "SALSA SRIRACHA 255 G"
+          },
+          {
+                "id": "313",
+                "name": "SALSA SRIRACHA 481 G"
+          },
+          {
+                "id": "1087",
+                "name": "SALSA TABASCO 60 ML"
+          },
+          {
+                "id": "316",
+                "name": "SALSA TAPATIO 148 ML"
+          },
+          {
+                "id": "315",
+                "name": "SALSA TAPATIO 296 ML"
+          },
+          {
+                "id": "742",
+                "name": "SALSA TIPO INGLESA 145 ML"
+          },
+          {
+                "id": "109",
+                "name": "SALVO LAVATRASTE 500 G"
+          },
+          {
+                "id": "385",
+                "name": "SALVO LIQ. 640 ML"
+          },
+          {
+                "id": "471",
+                "name": "SALVO LIQUIDO 1.2  L"
+          },
+          {
+                "id": "475",
+                "name": "SALVO LIQUIDO 2.6 L"
+          },
+          {
+                "id": "476",
+                "name": "SALVO LIQUIDO 300 ML"
+          },
+          {
+                "id": "477",
+                "name": "SALVO LIQUIDO 500 ML"
+          },
+          {
+                "id": "479",
+                "name": "SALVO LIQUIDO 900 ML"
+          },
+          {
+                "id": "1423",
+                "name": "SALVO LIQUIDO VARIEDAD 750 ML"
+          },
+          {
+                "id": "1308",
+                "name": "SAN PELLEGRINO 330 ML"
+          },
+          {
+                "id": "1089",
+                "name": "SARDINAS DOLORES PREMIUM 120 G"
+          },
+          {
+                "id": "745",
+                "name": "SARDINAS GUAYMEX 425 G"
+          },
+          {
+                "id": "746",
+                "name": "SAVILE 700 ML"
+          },
+          {
+                "id": "1388",
+                "name": "SAVILE TRATAMIENTO 90 G"
+          },
+          {
+                "id": "2012",
+                "name": "SECRET AEROSOL 150 ML"
+          },
+          {
+                "id": "863",
+                "name": "SECRET BARRA 45 G"
+          },
+          {
+                "id": "846",
+                "name": "SECRET CLINICAL"
+          },
+          {
+                "id": "1028",
+                "name": "SECRET GEL 45 G"
+          },
+          {
+                "id": "209",
+                "name": "SECRET PACK AERO + BARRA"
+          },
+          {
+                "id": "1179",
+                "name": "SEDAL CREMA P/ PEINAR 300 ML"
+          },
+          {
+                "id": "130",
+                "name": "SEDAL MASCARILLA 300 ML"
+          },
+          {
+                "id": "268",
+                "name": "SEDAL SHAMPOO 300 ML PACK"
+          },
+          {
+                "id": "1202",
+                "name": "SEDAL SHAMPOO 620 ML"
+          },
+          {
+                "id": "1407",
+                "name": "SERVILLETA KIHARA 500 H"
+          },
+          {
+                "id": "881",
+                "name": "SERVILLETA LYS 125 H"
+          },
+          {
+                "id": "882",
+                "name": "SERVILLETA LYS 250 H"
+          },
+          {
+                "id": "884",
+                "name": "SERVILLETA LYS 500 H"
+          },
+          {
+                "id": "749",
+                "name": "SERVILLETA PETALO 420 H"
+          },
+          {
+                "id": "1083",
+                "name": "SERVILLETA VOGUE C/100"
+          },
+          {
+                "id": "1201",
+                "name": "SERVITOALLA PETALO C/3"
+          },
+          {
+                "id": "1124",
+                "name": "SERVITOALLA PETALO RINDE MAX"
+          },
+          {
+                "id": "870",
+                "name": "SERVITOALLA SCOTT"
+          },
+          {
+                "id": "559",
+                "name": "SOYA 300G"
+          },
+          {
+                "id": "1508",
+                "name": "SPEED STICK 30 ML"
+          },
+          {
+                "id": "538",
+                "name": "SPEED STICK BARRA"
+          },
+          {
+                "id": "539",
+                "name": "SPEED STIK AEROSOL 150 ML"
+          },
+          {
+                "id": "820",
+                "name": "SQUIRT 2 L"
+          },
+          {
+                "id": "1192",
+                "name": "STARBUCKS 280 ML"
+          },
+          {
+                "id": "1278",
+                "name": "STEFANO AEROSOL 113 G"
+          },
+          {
+                "id": "744",
+                "name": "STEVIA N`JOY 100 G"
+          },
+          {
+                "id": "1055",
+                "name": "SUAVITEL 3 L"
+          },
+          {
+                "id": "761",
+                "name": "SUAVITEL 8.5 L"
+          },
+          {
+                "id": "757",
+                "name": "SUAVITEL 850 ML"
+          },
+          {
+                "id": "885",
+                "name": "SUAVIZANTE SUAZUL 1 L"
+          },
+          {
+                "id": "764",
+                "name": "SUERO ELECTROLIT 625 ML"
+          },
+          {
+                "id": "765",
+                "name": "SULTAN ACIDO MURIATICO 900 ML"
+          },
+          {
+                "id": "1481",
+                "name": "TAJIN GOMITA 55 G"
+          },
+          {
+                "id": "505",
+                "name": "TAKIS FUEGO MINI 875 G"
+          },
+          {
+                "id": "945",
+                "name": "TALCO O-DOLEX 150 G"
+          },
+          {
+                "id": "381",
+                "name": "TALCO O-DOLEX 300 G"
+          },
+          {
+                "id": "1053",
+                "name": "TAMPAX PEARL C/8"
+          },
+          {
+                "id": "1369",
+                "name": "TAPA CONTENEDOR"
+          },
+          {
+                "id": "1483",
+                "name": "TENA LADY DISCRET C/10"
+          },
+          {
+                "id": "1484",
+                "name": "TENA PANTS COMFORT C/15"
+          },
+          {
+                "id": "1485",
+                "name": "TENA PANTS MAXI PROTECT C/15"
+          },
+          {
+                "id": "1486",
+                "name": "TENA PAÑAL PREDOBLADO C/10"
+          },
+          {
+                "id": "1487",
+                "name": "TENA SLIP MAXI PROTECT C/10"
+          },
+          {
+                "id": "189",
+                "name": "TENA SLIP NOCTURO CH/M C/8"
+          },
+          {
+                "id": "284",
+                "name": "TENEDOR GRANDE C/25"
+          },
+          {
+                "id": "244",
+                "name": "TINTE NUTRISSE"
+          },
+          {
+                "id": "1059",
+                "name": "TOALLITA HUM. SUAVELASTIC C/100"
+          },
+          {
+                "id": "455",
+                "name": "TOALLITA HUMEDA ABSORSEC"
+          },
+          {
+                "id": "1098",
+                "name": "TOALLITAS DESMAQUILLANTES NUAMUN"
+          },
+          {
+                "id": "158",
+                "name": "TORTILLAS EL PROFE"
+          },
+          {
+                "id": "155",
+                "name": "TOSTADAS DE MOYAHUA"
+          },
+          {
+                "id": "287",
+                "name": "TOSTADAS LOS CHARROS 230 G"
+          },
+          {
+                "id": "131",
+                "name": "TRESEMMÉ MASCARILLA TRATAMIENTO 300 G"
+          },
+          {
+                "id": "1382",
+                "name": "TRIDENT 18´S"
+          },
+          {
+                "id": "1503",
+                "name": "TRIDENT 4S C/40"
+          },
+          {
+                "id": "725",
+                "name": "UTIL 10 K"
+          },
+          {
+                "id": "1234",
+                "name": "VAINILLA VERACUZANA 60 ML"
+          },
+          {
+                "id": "781",
+                "name": "VALENTINA 1 L"
+          },
+          {
+                "id": "782",
+                "name": "VALENTINA 370 ML"
+          },
+          {
+                "id": "14501",
+                "name": "VALENTINA NEGRA 370 ML"
+          },
+          {
+                "id": "783",
+                "name": "VANART 750 ML"
+          },
+          {
+                "id": "260",
+                "name": "VANISH 420 ML"
+          },
+          {
+                "id": "784",
+                "name": "VANISH 925 ML"
+          },
+          {
+                "id": "1043",
+                "name": "VANISH BARRA 68 G"
+          },
+          {
+                "id": "823",
+                "name": "VANISH OXI ACTION 450 G"
+          },
+          {
+                "id": "785",
+                "name": "VASO DESECHABLE # 10"
+          },
+          {
+                "id": "786",
+                "name": "VASO DESECHABLE # 12"
+          },
+          {
+                "id": "787",
+                "name": "VASO DESECHABLE # 14"
+          },
+          {
+                "id": "788",
+                "name": "VASO DESECHABLE # 16"
+          },
+          {
+                "id": "1367",
+                "name": "VASO DESECHABLE # 4A"
+          },
+          {
+                "id": "791",
+                "name": "VASO DESECHABLE # 5.5"
+          },
+          {
+                "id": "792",
+                "name": "VASO DESECHABLE # 8"
+          },
+          {
+                "id": "1371",
+                "name": "VASO DESECHABLE #6"
+          },
+          {
+                "id": "961",
+                "name": "VASO INOX ROJO"
+          },
+          {
+                "id": "793",
+                "name": "VASO TERMICO NO. 10"
+          },
+          {
+                "id": "794",
+                "name": "VASO TERMICO NO. 12"
+          },
+          {
+                "id": "1466",
+                "name": "VASO TERMICO NO. 14"
+          },
+          {
+                "id": "871",
+                "name": "VASO TERMICO NO. 16"
+          },
+          {
+                "id": "1372",
+                "name": "VASO TERMICO NO. 20"
+          },
+          {
+                "id": "387",
+                "name": "VASO TERMICO NO. 32"
+          },
+          {
+                "id": "1366",
+                "name": "VASO TERMICO NO. 6"
+          },
+          {
+                "id": "797",
+                "name": "VASO TERMICO NO. 8"
+          },
+          {
+                "id": "798",
+                "name": "VEL ROSITA 1 L"
+          },
+          {
+                "id": "799",
+                "name": "VEL ROSITA 1.36 L"
+          },
+          {
+                "id": "858",
+                "name": "VEL ROSITA 450 ML"
+          },
+          {
+                "id": "897",
+                "name": "VEL ROSITA BOLSA 500 ML"
+          },
+          {
+                "id": "1071",
+                "name": "VELADORA COLORES JUMBO 1"
+          },
+          {
+                "id": "1067",
+                "name": "VELADORA COLORES JUMBO 2"
+          },
+          {
+                "id": "1066",
+                "name": "VELADORA COLORES JUMBO 3"
+          },
+          {
+                "id": "985",
+                "name": "VELADORA COLORES QUINCENAL"
+          },
+          {
+                "id": "1072",
+                "name": "VELADORA COLORES SEMANAL"
+          },
+          {
+                "id": "1111",
+                "name": "VELADORA IMAGENES"
+          },
+          {
+                "id": "1107",
+                "name": "VELADORA LIMONERO"
+          },
+          {
+                "id": "1429",
+                "name": "VELADORA MICHELADA"
+          },
+          {
+                "id": "949",
+                "name": "VELADORA REPUESTO NO. 21"
+          },
+          {
+                "id": "886",
+                "name": "VELADORA SCORPIO"
+          },
+          {
+                "id": "1079",
+                "name": "VERDE VALLE MAIZ PALOMERO 500 G"
+          },
+          {
+                "id": "1104",
+                "name": "VICK VAPORUB LATA 12 G"
+          },
+          {
+                "id": "1064",
+                "name": "VINAGRE BLANCO 1 L"
+          },
+          {
+                "id": "991",
+                "name": "VINAGRE BLANCO 3.7L"
+          },
+          {
+                "id": "903",
+                "name": "VINAGRE BLANCO 500 ML"
+          },
+          {
+                "id": "861",
+                "name": "VINAGRE MANZANA 1 L"
+          },
+          {
+                "id": "165",
+                "name": "VINAGRE MANZANA 3.7 L"
+          },
+          {
+                "id": "981",
+                "name": "VITAFIL 100 M"
+          },
+          {
+                "id": "1370",
+                "name": "VITAFILM 30 X 30"
+          },
+          {
+                "id": "851",
+                "name": "VUALA SORPRESA"
+          },
+          {
+                "id": "1393",
+                "name": "WELCH`S GOMITAS 14 G"
+          },
+          {
+                "id": "804",
+                "name": "YEMINA 200 G"
+          },
+          {
+                "id": "1303",
+                "name": "ZEST 135 G"
+          },
+          {
+                "id": "810",
+                "name": "ZOTE 200 G"
+          },
+          {
+                "id": "808",
+                "name": "ZOTE 400 G"
+          },
+          {
+                "id": "425",
+                "name": "ZOTE ESCAMAS 250 G"
+          },
+          {
+                "id": "809",
+                "name": "ZOTE ESCAMAS 500 G"
+          },
+          {
+                "id": "1073",
+                "name": "ZOTE LIQUIDO 1 L"
+          },
+          {
+                "id": "911",
+                "name": "ZOTE LIQUIDO 5 L"
+          },
+          {
+                "id": "180",
+                "name": "ZOTE LIQUIDO GALON"
+          }
+    ];
+
+    const state = {
+      items: [],
+      currentPackage: 0,
+      currentGroup: 0,
+      stage: "system",
+      indexInGroup: 0
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const screens = {
+      load: $("screenLoad"),
+      packages: $("screenPackages"),
+      package: $("screenPackage"),
+      capture: $("screenCapture")
+    };
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadSavedState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        if (saved && Array.isArray(saved.items)) Object.assign(state, saved);
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function showScreen(name) {
+      Object.values(screens).forEach((screen) => screen.classList.remove("active"));
+      screens[name].classList.add("active");
+      $("bottomActions").classList.toggle("hidden", name !== "capture");
+      updateHeader();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function normalizeHeader(value) {
+      return String(value || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+    }
+
+    function splitLine(line) {
+      if (line.includes("\t")) return line.split("\t");
+      if (line.includes(";")) return line.split(";");
+      return line.split(",");
+    }
+
+    function parseInventory(text) {
+      const rows = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map(splitLine);
+      if (!rows.length) return [];
+
+      const header = rows[0].map(normalizeHeader);
+      const hasHeader = header.some((cell) => ["id", "sku", "codigo", "producto", "descripcion", "descripcion producto", "nombre"].includes(cell));
+      const dataRows = hasHeader ? rows.slice(1) : rows;
+      const idIndex = hasHeader ? Math.max(header.findIndex((h) => ["id", "sku", "codigo", "clave"].includes(h)), 0) : 0;
+      let nameIndex = hasHeader ? header.findIndex((h) => ["producto", "descripcion", "descripcion producto", "nombre", "articulo"].includes(h)) : 1;
+      if (nameIndex < 0) nameIndex = idIndex === 0 ? 1 : 0;
+
+      return dataRows
+        .map((row, index) => ({
+          id: String(row[idIndex] || "").trim() || `SKU-${index + 1}`,
+          name: String(row[nameIndex] || row.find(Boolean) || "").trim(),
+          systemQty: null,
+          physicalQty: null,
+          systemConfirmed: false,
+          physicalConfirmed: false
+        }))
+        .filter((item) => item.name)
+        .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+    }
+
+    function parseInventoryRows(rows) {
+      if (!rows.length) return [];
+      const header = rows[0].map(normalizeHeader);
+      const idIndex = Math.max(header.findIndex((h) => ["id", "sku", "codigo", "clave"].includes(h)), 0);
+      let nameIndex = header.findIndex((h) => ["articulo", "producto", "descripcion", "descripcion producto", "nombre"].includes(h));
+      if (nameIndex < 0) nameIndex = idIndex === 0 ? 1 : 0;
+
+      return rows.slice(1)
+        .map((row, index) => ({
+          id: String(row[idIndex] || "").trim() || `SKU-${index + 1}`,
+          name: String(row[nameIndex] || "").trim(),
+          systemQty: null,
+          physicalQty: null,
+          systemConfirmed: false,
+          physicalConfirmed: false
+        }))
+        .filter((item) => item.name)
+        .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+    }
+
+    function createBuiltInCatalogItems() {
+      return BUILT_IN_CATALOG
+        .map((item) => ({
+          id: String(item.id || "").trim(),
+          name: String(item.name || "").trim(),
+          systemQty: null,
+          physicalQty: null,
+          systemConfirmed: false,
+          physicalConfirmed: false
+        }))
+        .filter((item) => item.id && item.name)
+        .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+    }
+
+    function loadBuiltInCatalog() {
+      state.items = createBuiltInCatalogItems();
+      state.currentPackage = 0;
+      state.currentGroup = 0;
+      state.stage = "system";
+      state.indexInGroup = 0;
+      saveState();
+      renderPackages();
+      showScreen("packages");
+    }
+
+    function startInventory(items) {
+      if (!items.length) {
+        alert("No se detectaron productos. Revisa que existan las columnas ID y Articulo.");
+        return;
+      }
+      state.items = items;
+      state.currentPackage = 0;
+      state.currentGroup = 0;
+      state.stage = "system";
+      state.indexInGroup = 0;
+      saveState();
+      renderPackages();
+      showScreen("packages");
+    }
+
+    function setFileNotice(message, isError = false) {
+      const notice = $("fileNotice");
+      notice.textContent = message;
+      notice.style.background = isError ? "#fff0f1" : "#e9f8f1";
+      notice.style.borderColor = isError ? "#ffc9ce" : "#b8e6d0";
+      notice.style.color = isError ? "#9f1f2d" : "#0f6d4d";
+      notice.classList.remove("hidden");
+    }
+
+    function loadExcelFile(file) {
+      if (!file) return;
+      const extension = file.name.split(".").pop().toLowerCase();
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        try {
+          if (["csv", "txt"].includes(extension)) {
+            const items = parseInventory(String(event.target.result || ""));
+            setFileNotice(`${items.length} productos detectados desde ${file.name}.`);
+            startInventory(items);
+            return;
+          }
+
+          if (!window.XLSX) {
+            setFileNotice("No se pudo cargar el lector de Excel. Revisa tu conexion o usa copiar/pegar desde Excel.", true);
+            return;
+          }
+
+          const workbook = XLSX.read(event.target.result, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+          const items = parseInventoryRows(rows);
+          setFileNotice(`${items.length} productos detectados desde ${file.name}.`);
+          startInventory(items);
+        } catch (error) {
+          setFileNotice(`No se pudo leer el archivo: ${error.message}`, true);
+        }
+      };
+
+      reader.onerror = () => setFileNotice("No se pudo abrir el archivo seleccionado.", true);
+
+      if (["csv", "txt"].includes(extension)) {
+        reader.readAsText(file, "utf-8");
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    }
+
+    function packageCount() {
+      return Math.ceil(state.items.length / BATCH_SIZE);
+    }
+
+    function getPackageItems(packageIndex = state.currentPackage) {
+      const start = packageIndex * BATCH_SIZE;
+      return state.items.slice(start, start + BATCH_SIZE);
+    }
+
+    function getGroupItems(packageIndex = state.currentPackage, groupIndex = state.currentGroup) {
+      const packageStart = packageIndex * BATCH_SIZE;
+      const groupStart = packageStart + groupIndex * GROUP_SIZE;
+      return state.items.slice(groupStart, groupStart + GROUP_SIZE);
+    }
+
+    function difference(item) {
+      if (item.systemQty === null || item.physicalQty === null) return null;
+      return Number(item.physicalQty) - Number(item.systemQty);
+    }
+
+    function statusOf(item) {
+      const diff = difference(item);
+      if (diff === null) return "Pendiente";
+      if (diff === 0) return "Correcto";
+      if (diff > 0) return "Sobrante";
+      return "Faltante";
+    }
+
+    function correctionAction(item) {
+      const diff = difference(item);
+      if (diff === null) return "Pendiente";
+      if (diff === 0) return "Sin ajuste";
+      if (diff > 0) return `Agregar ${diff}`;
+      return `Descontar ${Math.abs(diff)}`;
+    }
+
+    function summarize(items) {
+      return items.reduce((acc, item) => {
+        const status = statusOf(item);
+        acc.total += 1;
+        acc.completed += item.systemConfirmed && item.physicalConfirmed ? 1 : 0;
+        acc.pending += item.systemConfirmed && item.physicalConfirmed ? 0 : 1;
+        acc.correct += status === "Correcto" ? 1 : 0;
+        acc.surplus += status === "Sobrante" ? 1 : 0;
+        acc.shortage += status === "Faltante" ? 1 : 0;
+        acc.net += difference(item) || 0;
+        return acc;
+      }, { total: 0, completed: 0, pending: 0, correct: 0, surplus: 0, shortage: 0, net: 0 });
+    }
+
+    function percent(done, total) {
+      return total ? Math.round((done / total) * 100) : 0;
+    }
+
+    function updateHeader() {
+      const all = summarize(state.items);
+      $("topStatus").textContent = state.items.length
+        ? `${all.completed}/${all.total} productos completos`
+        : "Carga el inventario para comenzar";
+      $("topProgress").style.width = `${percent(all.completed, all.total)}%`;
+    }
+
+    function renderPackages() {
+      $("inventorySummary").textContent = `${state.items.length} SKUs en ${packageCount()} paquetes de hasta 50`;
+      const list = $("packageList");
+      list.innerHTML = "";
+
+      for (let packageIndex = 0; packageIndex < packageCount(); packageIndex += 1) {
+        const items = getPackageItems(packageIndex);
+        const summary = summarize(items);
+        const first = items[0]?.name || "";
+        const last = items[items.length - 1]?.name || "";
+        const button = document.createElement("button");
+        button.className = "item-button";
+        button.type = "button";
+        button.innerHTML = `
+          <div class="row">
+            <strong>Paquete ${packageIndex + 1}</strong>
+            <span class="badge ${summary.completed === summary.total ? "ok" : summary.completed ? "brand" : ""}">${summary.completed}/${summary.total}</span>
+          </div>
+          <span class="muted">${first} - ${last}</span>
+          <div class="progress"><span style="width:${percent(summary.completed, summary.total)}%"></span></div>
+        `;
+        button.addEventListener("click", () => {
+          state.currentPackage = packageIndex;
+          state.currentGroup = 0;
+          saveState();
+          renderPackage();
+          showScreen("package");
+        });
+        list.appendChild(button);
+      }
+    }
+
+    function statBox(value, label, extraClass = "") {
+      return `<div class="stat ${extraClass}"><strong>${value}</strong><span>${label}</span></div>`;
+    }
+
+    function renderPackage() {
+      const items = getPackageItems();
+      const summary = summarize(items);
+      $("packageTitle").textContent = `Paquete ${state.currentPackage + 1}`;
+      $("packageRange").textContent = `${items[0]?.name || ""} - ${items[items.length - 1]?.name || ""}`;
+      $("packageProgress").style.width = `${percent(summary.completed, summary.total)}%`;
+      $("packageStats").innerHTML = [
+        statBox(summary.correct, "Correctos"),
+        statBox(summary.surplus, "Sobrantes"),
+        statBox(summary.shortage, "Faltantes"),
+        statBox(summary.pending, "Pendientes")
+      ].join("");
+
+      const finalSummary = summarize(state.items);
+      const reportReady = finalSummary.total > 0 && finalSummary.pending === 0;
+      $("sharePdfBtn").disabled = !reportReady;
+      $("downloadPdfBtn").disabled = !reportReady;
+      $("printPdfBtn").disabled = !reportReady;
+      $("reportHelp").textContent = reportReady
+        ? "Inventario completo. Comparte el PDF desde el menu nativo y elige WhatsApp."
+        : `El PDF final se habilita hasta terminar todos los paquetes. Faltan ${finalSummary.pending} productos.`;
+
+      const groupList = $("groupList");
+      groupList.innerHTML = "";
+      const groups = Math.ceil(items.length / GROUP_SIZE);
+      for (let groupIndex = 0; groupIndex < groups; groupIndex += 1) {
+        const groupItems = getGroupItems(state.currentPackage, groupIndex);
+        const groupSummary = summarize(groupItems);
+        const systemDone = groupItems.every((item) => item.systemConfirmed);
+        const physicalDone = groupItems.every((item) => item.physicalConfirmed);
+        const status = physicalDone ? "Completo" : systemDone ? "Listo para fisico" : "Sistema pendiente";
+        const button = document.createElement("button");
+        button.className = "item-button";
+        button.type = "button";
+        button.innerHTML = `
+          <div class="row">
+            <strong>Grupo ${groupIndex + 1}</strong>
+            <span class="badge ${physicalDone ? "ok" : systemDone ? "brand" : ""}">${status}</span>
+          </div>
+          <span class="muted">${groupItems[0]?.name || ""} - ${groupItems[groupItems.length - 1]?.name || ""}</span>
+          <div class="progress"><span style="width:${percent(groupSummary.completed, groupSummary.total)}%"></span></div>
+        `;
+        button.addEventListener("click", () => startGroup(groupIndex));
+        groupList.appendChild(button);
+      }
+    }
+
+    function startGroup(groupIndex) {
+      const groupItems = getGroupItems(state.currentPackage, groupIndex);
+      state.currentGroup = groupIndex;
+      state.stage = groupItems.every((item) => item.systemConfirmed) ? "physical" : "system";
+      if (groupItems.every((item) => item.physicalConfirmed)) state.stage = "review";
+      state.indexInGroup = 0;
+      saveState();
+      renderCapture();
+      showScreen("capture");
+    }
+
+    function currentGroupItems() {
+      return getGroupItems(state.currentPackage, state.currentGroup);
+    }
+
+    function currentItem() {
+      return currentGroupItems()[state.indexInGroup];
+    }
+
+    function updateSteps() {
+      const groupItems = currentGroupItems();
+      const systemDone = groupItems.every((item) => item.systemConfirmed);
+      const physicalDone = groupItems.every((item) => item.physicalConfirmed);
+      $("stepSystem").className = `step ${state.stage === "system" ? "active" : ""} ${systemDone ? "done" : ""}`;
+      $("stepPhysical").className = `step ${state.stage === "physical" ? "active" : ""} ${physicalDone ? "done" : ""}`;
+      $("stepReview").className = `step ${state.stage === "review" ? "active" : ""}`;
+    }
+
+    function renderCapture() {
+      const groupItems = currentGroupItems();
+      const item = currentItem();
+      const groupSummary = summarize(groupItems);
+      $("captureTitle").textContent = `Paquete ${state.currentPackage + 1} / Grupo ${state.currentGroup + 1}`;
+      $("captureSubtitle").textContent = state.stage === "review"
+        ? "Revisa diferencias y confirma el grupo"
+        : `${state.stage === "system" ? "Existencia en sistema" : "Conteo fisico"} - producto ${state.indexInGroup + 1} de ${groupItems.length}`;
+      $("groupProgress").style.width = state.stage === "system"
+        ? `${percent(groupItems.filter((product) => product.systemConfirmed).length, groupItems.length)}%`
+        : `${percent(groupSummary.completed, groupItems.length)}%`;
+      updateSteps();
+
+      const isReview = state.stage === "review";
+      $("captureCard").classList.toggle("hidden", isReview);
+      $("reviewPanel").classList.toggle("hidden", !isReview);
+      $("prevBtn").textContent = isReview ? "Editar" : "Anterior";
+      $("confirmBtn").textContent = isReview ? "Confirmar grupo" : "Confirmar";
+
+      if (isReview) {
+        renderGroupReview();
+        return;
+      }
+
+      $("productId").textContent = `ID/SKU ${item.id}`;
+      $("productName").textContent = item.name;
+      $("quantityLabel").textContent = state.stage === "system" ? "Existencia en sistema" : "Cantidad fisica";
+      $("systemContext").textContent = state.stage === "physical" ? `Sistema: ${item.systemQty}` : "Puede ser negativo, cero o positivo.";
+      $("quantityInput").min = state.stage === "physical" ? "0" : "";
+      $("minusBtn").parentElement.classList.toggle("physical", state.stage !== "system");
+      $("minusBtn").classList.toggle("hidden", state.stage !== "system");
+      $("quantityInput").value = state.stage === "system" && item.systemQty !== null
+        ? item.systemQty
+        : state.stage === "physical" && item.physicalQty !== null
+          ? item.physicalQty
+          : "";
+      $("inputNotice").classList.add("hidden");
+      updateLiveCalc();
+      setTimeout(() => $("quantityInput").focus(), 80);
+    }
+
+    function updateLiveCalc() {
+      const item = currentItem();
+      const input = $("quantityInput");
+      const box = $("liveCalc");
+      if (state.stage !== "physical" || input.value === "" || !item) {
+        box.classList.add("hidden");
+        return;
+      }
+      const physical = Number(input.value);
+      const diff = physical - Number(item.systemQty || 0);
+      let label = "Correcto";
+      let cls = "ok";
+      if (diff > 0) {
+        label = "Sobrante";
+        cls = "warn";
+      }
+      if (diff < 0) {
+        label = "Faltante";
+        cls = "bad";
+      }
+      box.className = `calc ${cls}`;
+      box.innerHTML = `Ajuste esperado<br><strong>${diff > 0 ? "+" : ""}${diff}</strong> ${label}`;
+    }
+
+    function validateQuantity() {
+      const value = $("quantityInput").value.trim();
+      const notice = $("inputNotice");
+      if (value === "" || value === "-" || !/^-?\d+$/.test(value)) {
+        notice.textContent = "Ingresa una cantidad valida.";
+        notice.classList.remove("hidden");
+        return null;
+      }
+      const qty = Math.trunc(Number(value));
+      if (state.stage === "physical" && qty < 0) {
+        notice.textContent = "La cantidad fisica no puede ser menor a 0.";
+        notice.classList.remove("hidden");
+        return null;
+      }
+      notice.classList.add("hidden");
+      return qty;
+    }
+
+    function confirmQuantity() {
+      if (state.stage === "review") {
+        saveState();
+        renderPackage();
+        showScreen("package");
+        return;
+      }
+
+      const qty = validateQuantity();
+      if (qty === null) return;
+      const item = currentItem();
+      if (state.stage === "system") {
+        item.systemQty = qty;
+        item.systemConfirmed = true;
+      } else {
+        item.physicalQty = qty;
+        item.physicalConfirmed = true;
+      }
+
+      const groupItems = currentGroupItems();
+      if (state.indexInGroup < groupItems.length - 1) {
+        state.indexInGroup += 1;
+      } else if (state.stage === "system") {
+        state.stage = "physical";
+        state.indexInGroup = 0;
+      } else {
+        state.stage = "review";
+      }
+      saveState();
+      renderCapture();
+    }
+
+    function goPrevious() {
+      if (state.stage === "review") {
+        state.stage = "physical";
+        state.indexInGroup = 0;
+        renderCapture();
+        return;
+      }
+      if (state.indexInGroup > 0) {
+        state.indexInGroup -= 1;
+      } else if (state.stage === "physical") {
+        state.stage = "system";
+        state.indexInGroup = currentGroupItems().length - 1;
+      }
+      saveState();
+      renderCapture();
+    }
+
+    function renderGroupReview() {
+      const groupItems = currentGroupItems();
+      const summary = summarize(groupItems);
+      $("groupStats").innerHTML = [
+        statBox(summary.correct, "Correctos"),
+        statBox(summary.surplus, "Sobrantes"),
+        statBox(summary.shortage, "Faltantes"),
+        statBox(summary.net > 0 ? `+${summary.net}` : summary.net, "Ajuste neto")
+      ].join("");
+
+      $("reviewList").innerHTML = groupItems.map((item, index) => {
+        const diff = difference(item);
+        const status = statusOf(item);
+        const badgeClass = status === "Correcto" ? "ok" : status === "Sobrante" ? "warn" : "bad";
+        return `
+          <button class="review-row" type="button" data-review-index="${index}">
+            <span>
+              <strong>${item.id} - ${item.name}</strong>
+              <small>Sistema ${item.systemQty} | Fisico ${item.physicalQty}</small>
+            </span>
+            <span class="badge ${badgeClass}">${diff > 0 ? "+" : ""}${diff}</span>
+          </button>
+        `;
+      }).join("");
+
+      $("reviewList").querySelectorAll("[data-review-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.stage = "physical";
+          state.indexInGroup = Number(button.dataset.reviewIndex);
+          renderCapture();
+        });
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function ensureReportReady() {
+      const items = state.items;
+      const summary = summarize(items);
+      if (summary.pending > 0) {
+        alert(`Faltan ${summary.pending} productos por validar. El PDF final se genera hasta terminar todos los paquetes.`);
+        return null;
+      }
+      return { items, summary };
+    }
+
+    function buildReportHtml() {
+      const report = ensureReportReady();
+      if (!report) return "";
+      const { items, summary } = report;
+      const date = new Date().toLocaleString("es-MX");
+
+      return `
+        <div class="print-page">
+          <h1>Reporte final de validacion de inventario</h1>
+          <div class="print-meta">
+            <div class="print-box"><strong>Paquetes</strong><br>${packageCount()}</div>
+            <div class="print-box"><strong>Fecha</strong><br>${date}</div>
+            <div class="print-box"><strong>Productos</strong><br>${summary.total}</div>
+            <div class="print-box"><strong>Ajuste neto</strong><br>${summary.net > 0 ? "+" : ""}${summary.net}</div>
+          </div>
+          <div class="print-summary">
+            <div class="print-box"><strong>Correctos</strong><br>${summary.correct}</div>
+            <div class="print-box"><strong>Sobrantes</strong><br>${summary.surplus}</div>
+            <div class="print-box"><strong>Faltantes</strong><br>${summary.shortage}</div>
+            <div class="print-box"><strong>Pendientes</strong><br>${summary.pending}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>ID/SKU</th>
+                <th>Producto</th>
+                <th>Sistema</th>
+                <th>Fisico</th>
+                <th>Accion para corregir</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((item) => `
+                <tr>
+                  <td>${escapeHtml(item.id)}</td>
+                  <td>${escapeHtml(item.name)}</td>
+                  <td>${item.systemQty}</td>
+                  <td>${item.physicalQty}</td>
+                  <td>${escapeHtml(correctionAction(item))}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderReport() {
+      const html = buildReportHtml();
+      if (!html) return false;
+      $("printReport").innerHTML = html;
+      return true;
+    }
+
+    function reportPdfOptions() {
+      return {
+        margin: 7,
+        filename: "reporte_inventario_final.pdf",
+        image: { type: "jpeg", quality: 0.92 },
+        html2canvas: { scale: 1.5, useCORS: true },
+        jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+      };
+    }
+
+    async function generateReportPdfBlob() {
+      if (!window.html2pdf) {
+        throw new Error("No se pudo cargar el generador de PDF. Usa Imprimir / Guardar como PDF.");
+      }
+      if (!renderReport()) return null;
+      const reportHost = $("printReport");
+      const previousClass = reportHost.className;
+      const previousStyle = reportHost.getAttribute("style");
+      reportHost.classList.remove("hidden");
+      reportHost.style.position = "fixed";
+      reportHost.style.left = "-10000px";
+      reportHost.style.top = "0";
+      reportHost.style.width = "216mm";
+      reportHost.style.background = "#fff";
+      const element = reportHost.querySelector(".print-page");
+
+      try {
+        return await html2pdf().set(reportPdfOptions()).from(element).outputPdf("blob");
+      } finally {
+        reportHost.className = previousClass;
+        if (previousStyle === null) {
+          reportHost.removeAttribute("style");
+        } else {
+          reportHost.setAttribute("style", previousStyle);
+        }
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function downloadReportPdf() {
+      try {
+        const blob = await generateReportPdfBlob();
+        if (!blob) return;
+        downloadBlob(blob, "reporte_inventario_final.pdf");
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function shareReportPdf() {
+      try {
+        const blob = await generateReportPdfBlob();
+        if (!blob) return;
+        const file = new File([blob], "reporte_inventario_final.pdf", { type: "application/pdf" });
+        const shareData = {
+          files: [file],
+          title: "Reporte de inventario",
+          text: "Reporte final de validacion de inventario"
+        };
+
+        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+          await navigator.share(shareData);
+          return;
+        }
+
+        downloadBlob(blob, "reporte_inventario_final.pdf");
+        alert("Tu navegador no permite adjuntar el PDF directamente. Se descargo el reporte; compartelo desde WhatsApp.");
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        alert(`No se pudo compartir el PDF: ${error.message}`);
+      }
+    }
+
+    function printReportPdf() {
+      if (!renderReport()) return;
+      setTimeout(() => window.print(), 100);
+    }
+
+    function exportCsv() {
+      const rows = [["Paquete", "ID/SKU", "Producto", "Sistema", "Fisico", "Ajuste", "Estado"]];
+      getPackageItems().forEach((item) => {
+        const diff = difference(item);
+        rows.push([
+          state.currentPackage + 1,
+          item.id,
+          item.name,
+          item.systemQty ?? "",
+          item.physicalQty ?? "",
+          diff ?? "",
+          statusOf(item)
+        ]);
+      });
+      const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `reporte_inventario_paquete_${String(state.currentPackage + 1).padStart(2, "0")}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    $("loadBtn").addEventListener("click", () => {
+      const items = parseInventory($("pasteBox").value);
+      startInventory(items);
+    });
+
+    $("excelFile").addEventListener("change", (event) => {
+      loadExcelFile(event.target.files[0]);
+    });
+
+    $("demoBtn").addEventListener("click", () => {
+      $("pasteBox").value = [
+        "ID\tProducto",
+        "100\tAceite vegetal 1L",
+        "101\tAzucar estandar 1kg",
+        "102\tArroz super extra 1kg",
+        "103\tCafe soluble 200g",
+        "104\tDetergente polvo 900g",
+        "105\tFrijol peruano 1kg",
+        "106\tGalleta vainilla 180g",
+        "107\tHarina trigo 1kg",
+        "108\tJabon barra 350g",
+        "109\tLeche entera 1L",
+        "110\tMayonesa 390g",
+        "111\tPapel higienico 4 rollos"
+      ].join("\n");
+    });
+
+    $("homeBtn").addEventListener("click", () => {
+      if (state.items.length) {
+        renderPackages();
+        showScreen("packages");
+      } else {
+        showScreen("load");
+      }
+    });
+
+    $("resetBtn").addEventListener("click", () => {
+      if (!confirm("Esto limpiara el avance guardado y recargara el catalogo integrado. Continuar?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      $("pasteBox").value = "";
+      $("excelFile").value = "";
+      loadBuiltInCatalog();
+    });
+
+    $("backPackagesBtn").addEventListener("click", () => {
+      renderPackages();
+      showScreen("packages");
+    });
+
+    $("exitGroupBtn").addEventListener("click", () => {
+      saveState();
+      renderPackage();
+      showScreen("package");
+    });
+
+    $("quantityInput").addEventListener("input", updateLiveCalc);
+    $("minusBtn").addEventListener("click", () => {
+      if (state.stage !== "system") return;
+      const input = $("quantityInput");
+      const value = input.value.trim();
+      input.value = value.startsWith("-") ? value.slice(1) : `-${value}`;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    });
+    $("confirmBtn").addEventListener("click", confirmQuantity);
+    $("prevBtn").addEventListener("click", goPrevious);
+    $("sharePdfBtn").addEventListener("click", shareReportPdf);
+    $("downloadPdfBtn").addEventListener("click", downloadReportPdf);
+    $("printPdfBtn").addEventListener("click", printReportPdf);
+    $("exportCsvBtn").addEventListener("click", exportCsv);
+
+    loadSavedState();
+    if (state.items.length) {
+      renderPackages();
+      showScreen("packages");
+    } else {
+      loadBuiltInCatalog();
+    }
+  </script>
+</body>
+</html>
+
+
